@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>こみゃくのもり</title>
+    <style>
+        *, *::before, *::after { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            outline: none;
+            /* ロングタップによるメニュー表示を抑制 */
+            -webkit-touch-callout: none;
+        }
+
+        :root {
+            --emerald:    #00A59E;
+            --white:      #FFFFFF;
+            --dark-gray:  #222426; 
+            --ink:        var(--dark-gray);
+            --panel-bg:   rgba(255, 255, 255, 0.95);
+            --color-co-myaku: #D9DE00;
+            --color-no:      #C9E0B8;
+            --color-mori:    #00A59E;
+            --color-eye-blue: #0068B7;
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden;
+            background: var(--white);
+            touch-action: none;
+            font-family: "Helvetica", "Arial", "Yu Gothic Medium", "YuGothic", "Hiragino Kaku Gothic ProN", sans-serif;
+            font-weight: 500;
+            color: var(--ink);
+        }
+
+        #bg-container {
+            position: fixed; inset: 0; z-index: 0;
+            width: 100%; height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: var(--white);
+            transition: background-image 0.8s ease;
+        }
+
+        canvas {
+            display: block;
+            position: fixed; inset: 0;
+            width: 100%; height: 100%;
+            z-index: 10;
+        }
+
+        /* ── UI ── */
+        #overlay {
+            position: fixed; inset: 0; z-index: 200;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: var(--white);
+            transition: opacity 1.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        #overlay.fade-out { opacity: 0; pointer-events: none; }
+
+        .overlay-inner {
+            display: flex; flex-direction: column; align-items: center;
+            animation: overlayReveal 1.2s cubic-bezier(0.4, 0, 0.2, 1) both;
+            width: 90%;
+        }
+        @keyframes overlayReveal {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .title-mark {
+            font-size: 11px; letter-spacing: 0.35em;
+            color: var(--dark-gray);
+            text-transform: uppercase;
+            margin-bottom: 24px;
+            font-weight: 700;
+        }
+
+        .title-main {
+            font-size: clamp(48px, 10vw, 120px);
+            line-height: 1.1;
+            margin-bottom: 64px;
+            text-align: center;
+            white-space: nowrap;
+            letter-spacing: -0.02em;
+            font-weight: 700;
+        }
+        .title-main .t-co-myaku { color: var(--color-co-myaku); }
+        .title-main .t-no       { color: var(--color-no); }
+        .title-main .t-mori     { color: var(--color-mori); }
+
+        .title-main span.subtitle { 
+            display: block; 
+            font-size: 0.25em; 
+            letter-spacing: 0.25em; 
+            margin-top: 16px; 
+            font-weight: 400; 
+            font-style: italic; 
+            color: var(--dark-gray);
+            opacity: 0.4;
+        }
+
+        #start-btn {
+            padding: 18px 64px;
+            background: transparent; color: var(--dark-gray);
+            border: 1px solid rgba(34, 36, 38, 0.2); border-radius: 2px;
+            text-transform: uppercase; letter-spacing: 0.6em;
+            font-size: 13px; font-weight: 700;
+            transition: all 0.4s ease;
+            cursor: pointer;
+        }
+        #start-btn:active { background: var(--dark-gray); color: var(--white); }
+
+        .header-controls {
+            position: fixed; top: 24px; right: 24px; z-index: 180;
+            opacity: 0; pointer-events: none;
+            transition: opacity 1s ease;
+        }
+        .header-controls.visible { opacity: 1; pointer-events: auto; }
+
+        #settings-trigger {
+            width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: var(--white);
+            background: var(--emerald);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: transform 0.4s ease;
+        }
+        #settings-trigger.active { transform: rotate(45deg); }
+
+        #control-panel {
+            position: fixed; top: 80px; right: 24px; z-index: 170;
+            width: 280px; padding: 28px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 4px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: none;
+            flex-direction: column; gap: 28px;
+            max-height: calc(100% - 120px);
+            overflow-y: auto;
+        }
+        #control-panel.open { display: flex; animation: panelFadeIn 0.3s ease forwards; }
+        @keyframes panelFadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 14px; }
+        .control-label {
+            font-size: 11px; letter-spacing: 0.15em; font-weight: 700;
+            display: flex; justify-content: space-between; opacity: 0.8;
+        }
+
+        #reset-bg-btn {
+            width: 22px; height: 22px; border-radius: 50%;
+            background: var(--white); border: 1px solid var(--dark-gray);
+            cursor: pointer;
+        }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: rgba(34, 36, 38, 0.1); }
+        input[type=range]::-webkit-slider-thumb {
+            height: 16px; width: 16px; border-radius: 50%; background: var(--emerald);
+            -webkit-appearance: none; margin-top: -7px; cursor: pointer;
+        }
+
+        .icon-action-btn {
+            background: rgba(34, 36, 38, 0.05); border: 1px solid rgba(34, 36, 38, 0.1);
+            padding: 12px; border-radius: 2px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 11px;
+            letter-spacing: 0.1em;
+        }
+
+        /* ── Credits ── */
+        .panel-footer {
+            margin-top: 12px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(34, 36, 38, 0.1);
+            font-size: 10px;
+            line-height: 1.6;
+            color: rgba(34, 36, 38, 0.6);
+            user-select: text;
+        }
+        .panel-footer p { margin: 0 0 8px 0; }
+        .panel-footer a { 
+            color: var(--color-mori); 
+            text-decoration: underline; 
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+
+<div id="bg-container"></div>
+
+<div id="overlay">
+    <div class="overlay-inner">
+        <div class="title-mark">Co-MYAKU FAN ART</div>
+        <div class="title-main">
+            <span class="t-co-myaku">こみゃく</span><span class="t-no">の</span><span class="t-mori">もり</span>
+            <span class="subtitle">Co-MYAKU Forest</span>
+        </div>
+        <button id="start-btn">START</button>
+    </div>
+</div>
+
+<div class="header-controls" id="header-controls">
+    <div id="settings-trigger">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 a2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            <circle cx="12" cy="12" r="3" fill="white"></circle>
+            <circle cx="13.5" cy="12" r="1.3" fill="var(--color-eye-blue)"></circle>
+        </svg>
+    </div>
+</div>
+
+<div id="control-panel">
+    <div class="control-group">
+        <div class="control-label">MASTER VOLUME <span id="vol-val">3.0</span></div>
+        <input type="range" id="master-vol" min="0" max="6" step="0.1" value="3.0">
+    </div>
+    <div class="control-group">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="control-label">BACKGROUND PHOTO</div>
+            <div id="reset-bg-btn" title="Reset"></div>
+        </div>
+        <label class="icon-action-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            <span>UPLOAD IMAGE</span>
+            <input type="file" id="bg-input" accept="image/*" style="display: none;">
+        </label>
+    </div>
+
+    <!-- Footer Credits Section -->
+    <div class="panel-footer">
+        <p>Presented by: ARPeggioRev2</p>
+        <p>Program assisted by: Gemini</p>
+        <p>こみゃくのもり Version: 1.2.1</p>
+        <p>
+            免責事項 このコンテンツは個人による非公式の二次創作です。利用の際は公式の二次創作<a href="https://www.expo2025.or.jp/news/news-20260330-01/" target="_blank">ガイドライン</a>を遵守してください。
+        </p>
+    </div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+/* ── Settings ── */
+const BPM = 120;
+const STEP_4TH = (60000 / BPM); 
+const ECHO_DOTTED_8TH = (STEP_4TH / 2) * 1.5; 
+
+const PALETTE = {
+    BLUE:       '#0068B7',
+    GREEN_VIVID:'#99C41E',
+    EMERALD:    '#00A59E',
+    GREEN_SOFT: '#C9E0B8',
+    YELLOW:     '#D9DE00',
+    WHITE:      '#FFFFFF'
+};
+
+const GREEN_SET = [PALETTE.GREEN_VIVID, PALETTE.EMERALD, PALETTE.GREEN_SOFT, PALETTE.YELLOW];
+const BASE_BODY_R = 40;
+const MIN_MARGIN = 15; 
+
+const MASTER_SCALE = [40, 47, 52, 56, 59, 64, 66, 68, 71, 73, 76];
+
+/* ── SOUND ENGINE ── */
+
+class BirdChirpEngine {
+    constructor(audioCtx, destination) {
+        this.ctx = audioCtx;
+        this.destination = destination;
+        this.musicalNotes = [88, 91, 93, 95, 98, 100]; 
+    }
+    playChirp(time, count = 1) {
+        const startTime = time || this.ctx.currentTime;
+        for (let i = 0; i < count; i++) {
+            const now = startTime + (i * 0.12);
+            const startMidi = this.musicalNotes[Math.floor(Math.random() * this.musicalNotes.length)];
+            let endMidi = startMidi + (Math.random() > 0.5 ? 2 : -2);
+            if (!this.musicalNotes.includes(endMidi)) endMidi = startMidi;
+
+            const baseFreq = 440 * Math.pow(2, (startMidi - 69) / 12);
+            const freqEnd = 440 * Math.pow(2, (endMidi - 69) / 12);
+            
+            const carrier = this.ctx.createOscillator();
+            const modulator = this.ctx.createOscillator();
+            const modGain = this.ctx.createGain();
+            const chirpGain = this.ctx.createGain();
+            const duration = 0.07 + Math.random() * 0.05;
+
+            carrier.frequency.setValueAtTime(baseFreq, now);
+            carrier.frequency.exponentialRampToValueAtTime(freqEnd, now + duration);
+            
+            modulator.frequency.value = 60 + Math.random() * 60;
+            modGain.gain.value = 160 + Math.random() * 100;
+            modulator.connect(modGain).connect(carrier.frequency);
+            
+            chirpGain.gain.setValueAtTime(0, now);
+            chirpGain.gain.linearRampToValueAtTime(0.02, now + 0.01);
+            chirpGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+            
+            carrier.connect(chirpGain).connect(this.destination);
+            modulator.start(now); carrier.start(now);
+            modulator.stop(now + duration); carrier.stop(now + duration);
+        }
+    }
+}
+
+class GuitarArpeggioEngine {
+    constructor(audioCtx, destination) {
+        this.ctx = audioCtx;
+        this.notes5 = [52, 59, 64, 68, 71]; 
+        this.notes7 = [40, 47, 52, 56, 59, 64, 66];
+        this.gainNode = this.ctx.createGain();
+        this.gainNode.gain.value = 0.3;
+        this.gainNode.connect(destination);
+    }
+    evolve() {
+        const targetArray = Math.random() > 0.5 ? this.notes5 : this.notes7;
+        const idx = Math.floor(Math.random() * targetArray.length);
+        const currentNote = targetArray[idx];
+        if ([40, 52, 64, 76].includes(currentNote)) return;
+        targetArray[idx] = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
+    }
+    playNote(midi, pan = 0) {
+        const now = this.ctx.currentTime;
+        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+        const mainGain = this.ctx.createGain();
+        const panner = this.ctx.createStereoPanner();
+        panner.pan.setValueAtTime(pan, now);
+        const attack = 0.05; const decay = 2.5; 
+        
+        [1, 2, 4].forEach((h) => {
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.frequency.setValueAtTime(freq * h, now);
+            g.gain.setValueAtTime(0, now);
+            g.gain.linearRampToValueAtTime(0.06 / h, now + attack);
+            g.gain.exponentialRampToValueAtTime(0.0001, now + decay);
+            osc.connect(g).connect(mainGain);
+            osc.start(now); osc.stop(now + decay + 0.1);
+        });
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.frequency.setValueAtTime(freq * 2.8, now);
+        filter.frequency.exponentialRampToValueAtTime(freq * 0.4, now + decay);
+        mainGain.connect(filter).connect(panner).connect(this.gainNode);
+        return freq;
+    }
+}
+
+class SanctuaryEngine {
+    constructor() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.mixerAmb = this.ctx.createGain(); 
+        this.mixerAmb.gain.value = 2.0;
+        const ambHPF = this.ctx.createBiquadFilter();
+        ambHPF.type = 'highpass'; ambHPF.frequency.value = 250;
+        
+        this.delay = this.ctx.createDelay(2.0);
+        this.delay.delayTime.value = ECHO_DOTTED_8TH / 1000; 
+        this.delayFeedback = this.ctx.createGain();
+        this.delayFeedback.gain.value = 0.55; 
+        this.delay.connect(this.delayFeedback).connect(this.delay);
+        
+        this.convolver = this.ctx.createConvolver();
+        this.reverbGain = this.ctx.createGain();
+        this.reverbGain.gain.value = 5.0;
+        this.generateIR();
+        this.convolver.connect(this.reverbGain);
+        
+        this.masterOut = this.ctx.createGain();
+        this.masterOut.gain.value = 3.0;
+        this.masterOut.connect(this.ctx.destination);
+        
+        this.guitar = new GuitarArpeggioEngine(this.ctx, this.masterOut); 
+        this.birds = new BirdChirpEngine(this.ctx, this.convolver); 
+        
+        this.mixerAmb.connect(ambHPF).connect(this.masterOut);
+        ambHPF.connect(this.delay); ambHPF.connect(this.convolver);
+        this.guitar.gainNode.connect(this.delay); this.guitar.gainNode.connect(this.convolver);
+        this.delay.connect(this.masterOut); this.reverbGain.connect(this.masterOut);
+        
+        this.active = false;
+        this.beatCount = 0;
+        this.currentIdx5 = 0; this.currentIdx7 = 0;
+    }
+    generateIR() {
+        const length = this.ctx.sampleRate * 8.0;
+        const buffer = this.ctx.createBuffer(2, length, this.ctx.sampleRate);
+        for (let c = 0; c < 2; c++) {
+            const data = buffer.getChannelData(c);
+            for (let i = 0; i < length; i++) {
+                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 5.0);
+            }
+        }
+        this.convolver.buffer = buffer;
+    }
+    playTone(freq, pan, richness, attack, release) {
+        const now = this.ctx.currentTime;
+        const panner = this.ctx.createStereoPanner();
+        panner.pan.value = pan;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        g.gain.setValueAtTime(0, now);
+        g.gain.linearRampToValueAtTime(0.2 * richness, now + attack); 
+        g.gain.exponentialRampToValueAtTime(0.0001, now + attack + release);
+        osc.connect(g).connect(panner).connect(this.mixerAmb);
+        osc.start(now); osc.stop(now + attack + release + 0.1);
+    }
+    spawnOrganicSound(freq, pan = 0, richness = 1.0) {
+        this.playTone(freq, pan, richness, 0.8, 4.5);
+    }
+
+    playChordSequence(notes) {
+        if (!this.active) return;
+        
+        const noteCount = 2 + Math.floor(Math.random() * (notes.length - 1));
+        const activeNotes = notes.slice(0, noteCount);
+        
+        activeNotes.forEach((midi, i) => {
+            const jitter = Math.random() * 200; 
+            const delayTime = i * (STEP_4TH * 1.5) + jitter; 
+            
+            setTimeout(() => {
+                const freq = 440 * Math.pow(2, (midi - 69) / 12);
+                const obs = createObserverAtRandom(freq);
+                if (obs) this.spawnOrganicSound(freq, (obs.x / canvas.width - 0.5) * 2, 1.0);
+            }, delayTime);
+        });
+    }
+
+    startAuto() {
+        this.active = true;
+        const tick = () => {
+            if (!this.active) return;
+            this.beatCount++;
+            
+            if (this.beatCount % 1 === 0) {
+                this.currentIdx5 = (this.currentIdx5 + 1) % 5;
+                const freq = this.guitar.playNote(this.guitar.notes5[this.currentIdx5], -0.6);
+                const x = (0.05 + (this.currentIdx5 / 4) * 0.4) * canvas.width;
+                particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*canvas.height, freq, GREEN_SET[this.currentIdx5 % 2]));
+            }
+            if (this.beatCount % 1 === 0) {
+                this.currentIdx7 = (this.currentIdx7 + 1) % 7;
+                const freq = this.guitar.playNote(this.guitar.notes7[this.currentIdx7], 0.6);
+                const x = (0.55 + (this.currentIdx7 / 6) * 0.4) * canvas.width;
+                particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*canvas.height, freq, GREEN_SET[2 + (this.currentIdx7 % 2)]));
+            }
+            if (this.beatCount % 16 === 0) this.guitar.evolve();
+            if (this.beatCount % 2 === 0 && Math.random() < 0.1) this.birds.playChirp(this.ctx.currentTime, 1);
+            
+            if (this.beatCount % 4 === 0) { 
+                const dice = Math.random();
+                if (dice < 0.15) { 
+                    const chordBase = Math.random() > 0.5 ? [2, 4, 6, 8] : [1, 3, 5, 7];
+                    const chord = chordBase.map(idx => MASTER_SCALE[idx % MASTER_SCALE.length]);
+                    this.playChordSequence(chord);
+                } else if (dice < 0.5) { 
+                    const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
+                    const freq = 440 * Math.pow(2, (midi - 69) / 12);
+                    
+                    const obs = createObserverAtRandom(freq);
+                    if (obs) {
+                        const pan = (obs.x / canvas.width - 0.5) * 2;
+                        this.spawnOrganicSound(freq, pan, 1.0);
+                    }
+                }
+            }
+            setTimeout(tick, STEP_4TH);
+        };
+        tick();
+    }
+}
+
+/* ── VISUAL ENTITIES ── */
+
+class ArpeggioParticle {
+    constructor(x, y, freq, color) {
+        this.x = x; this.y = y; this.color = color;
+        this.initialR = (4 + (440 / freq) * 3); 
+        this.birth = performance.now(); 
+        this.decayTime = 2000; 
+        this.dead = false;
+        this.alpha = 0.7;
+    }
+    update(now) {
+        const progress = (now - this.birth) / this.decayTime;
+        if (progress >= 1.0) { this.dead = true; this.alpha = 0; }
+        else { this.alpha = 0.7 * (1.0 - progress); }
+    }
+    draw(ctx) {
+        if (this.alpha <= 0) return;
+        ctx.save(); ctx.globalAlpha = this.alpha;
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.initialR, 0, Math.PI * 2);
+        ctx.fillStyle = this.color; ctx.fill(); ctx.restore();
+    }
+}
+
+class Observer {
+    constructor(x, y, attackMs, releaseMs) {
+        this.x = x; this.y = y; this.bodyR = BASE_BODY_R; 
+        this.bodyColor = GREEN_SET[Math.floor(Math.random() * GREEN_SET.length)];
+        this.birth = performance.now(); this.life = attackMs + releaseMs; this.attack = attackMs;
+        this.dead = false; this.alpha = 0;
+        this.eyeX = 0; this.eyeY = 0;
+        this.pupilRelX = 0; this.pupilRelY = 0;
+        this.targetEyeX = 0; this.targetEyeY = 0;
+        this.targetPupilX = 0; this.targetPupilY = 0;
+        
+        this.gazeUpdateInterval = 8 + Math.floor(Math.random() * 4); 
+        this.gazeUpdateOffset = Math.floor(Math.random() * 8); 
+        this.lastUpdateBeat = -1;
+    }
+    linkTone(freq) {
+        this.bodyR = BASE_BODY_R * Math.pow(440 / freq, 0.45);
+        this.whiteEyeR = this.bodyR * (68/160); 
+        this.pupilR = this.bodyR * (30/160);
+        this.eyeLimit = Math.max(0, this.bodyR - this.whiteEyeR); 
+        this.pupilLimit = Math.max(0, this.whiteEyeR - this.pupilR);
+        this.updateGazeTarget();
+    }
+    updateGazeTarget() {
+        const eyeAngle = Math.random() * Math.PI * 2;
+        const eyeDist = Math.random() * this.eyeLimit; 
+        this.targetEyeX = Math.cos(eyeAngle) * eyeDist; 
+        this.targetEyeY = Math.sin(eyeAngle) * eyeDist;
+        const pupilAngle = Math.random() * Math.PI * 2;
+        const pupilDist = Math.random() * this.pupilLimit;
+        this.targetPupilX = Math.cos(pupilAngle) * pupilDist;
+        this.targetPupilY = Math.sin(pupilAngle) * pupilDist;
+    }
+    update(now, beatCount) {
+        const elapsed = now - this.birth;
+        if (elapsed < this.attack) { 
+            // 登場（フェードイン）
+            this.alpha = elapsed / this.attack; 
+        }
+        else if (elapsed < this.life) { 
+            // 滞在：ライフの80%まではくっきり表示し、そこから急減衰させる
+            const stayProgress = (elapsed - this.attack) / (this.life - this.attack);
+            if (stayProgress < 0.8) {
+                this.alpha = 1.0;
+            } else {
+                // 残り20%の時間でスッと消える
+                this.alpha = 1.0 - (stayProgress - 0.8) / 0.2;
+            }
+        }
+        else { this.dead = true; this.alpha = 0; }
+
+        if ((beatCount + this.gazeUpdateOffset) % this.gazeUpdateInterval === 0 && beatCount !== this.lastUpdateBeat) {
+            this.lastUpdateBeat = beatCount;
+            this.updateGazeTarget();
+        }
+
+        this.eyeX += (this.targetEyeX - this.eyeX) * 0.04;
+        this.eyeY += (this.targetEyeY - this.eyeY) * 0.04;
+        this.pupilRelX += (this.targetPupilX - this.pupilRelX) * 0.06;
+        this.pupilRelY += (this.targetPupilY - this.pupilRelY) * 0.06;
+    }
+    draw(ctx) {
+        if (this.alpha <= 0) return;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.globalAlpha = this.alpha;
+        
+        ctx.beginPath(); ctx.arc(0, 0, this.bodyR, 0, Math.PI * 2);
+        ctx.fillStyle = this.bodyColor; ctx.fill();
+        
+        // 目はボディが消える少し前にパッと消すようなイメージ
+        const eyeAlpha = Math.max(0, (this.alpha - 0.1) / 0.9);
+        if (eyeAlpha > 0) {
+            ctx.globalAlpha = eyeAlpha * this.alpha;
+            ctx.beginPath(); 
+            ctx.arc(this.eyeX, this.eyeY, this.whiteEyeR, 0, Math.PI * 2);
+            ctx.fillStyle = PALETTE.WHITE; ctx.fill();
+            ctx.beginPath(); 
+            ctx.arc(this.eyeX + this.pupilRelX, this.eyeY + this.pupilRelY, this.pupilR, 0, Math.PI * 2);
+            ctx.fillStyle = PALETTE.BLUE; ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
+let observers = [], particles = [];
+const engine = new SanctuaryEngine();
+
+function isColliding(x, y, r) {
+    return observers.some(o => Math.hypot(o.x - x, o.y - y) < (o.bodyR + r + MIN_MARGIN));
+}
+
+function createObserverAtRandom(freq) {
+    const r = BASE_BODY_R * Math.pow(440 / freq, 0.45);
+    for(let i=0; i<30; i++) {
+        let x = canvas.width * (0.05 + Math.random() * 0.9), y = canvas.height * (0.05 + Math.random() * 0.9);
+        if (!isColliding(x, y, r)) {
+            const obs = new Observer(x, y, 800, 5200); obs.linkTone(freq);
+            observers.push(obs); return obs;
+        }
+    }
+    return null;
+}
+
+function render(now) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const beat = engine.active ? engine.beatCount : 0;
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i]; p.update(now);
+        if (p.dead) { particles.splice(i, 1); } else { p.draw(ctx); }
+    }
+    for (let i = observers.length - 1; i >= 0; i--) {
+        const o = observers[i]; o.update(now, beat);
+        if (o.dead) { observers.splice(i, 1); } else { o.draw(ctx); }
+    }
+    requestAnimationFrame(render);
+}
+
+/* ── UI Logic ── */
+const elements = {
+    startBtn: document.getElementById('start-btn'),
+    controls: document.getElementById('header-controls'),
+    trigger: document.getElementById('settings-trigger'),
+    panel: document.getElementById('control-panel'),
+    vol: document.getElementById('master-vol'),
+    volVal: document.getElementById('vol-val'),
+    bgInput: document.getElementById('bg-input'),
+    bgCont: document.getElementById('bg-container'),
+    resetBg: document.getElementById('reset-bg-btn')
+};
+
+// 全体的なコンテキストメニューの禁止
+window.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+}, false);
+
+elements.startBtn.onclick = () => {
+    document.getElementById('overlay').classList.add('fade-out');
+    elements.controls.classList.add('visible');
+    engine.ctx.resume().then(() => engine.startAuto());
+};
+
+elements.trigger.onclick = (e) => {
+    e.stopPropagation();
+    const open = elements.panel.classList.toggle('open');
+    elements.trigger.classList.toggle('active', open);
+};
+
+elements.resetBg.onclick = () => { elements.bgCont.style.backgroundImage = 'none'; elements.bgInput.value = ''; };
+
+elements.vol.oninput = (e) => {
+    const val = parseFloat(e.target.value);
+    elements.volVal.textContent = val.toFixed(1);
+    engine.masterOut.gain.setTargetAtTime(val, engine.ctx.currentTime, 0.1);
+};
+
+elements.bgInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (ev) => elements.bgCont.style.backgroundImage = `url(${ev.target.result})`;
+        reader.readAsDataURL(file);
+    }
+};
+
+window.addEventListener('touchstart', (e) => {
+    if (elements.panel.classList.contains('open')) {
+        if (!elements.panel.contains(e.target) && !elements.controls.contains(e.target)) {
+            elements.panel.classList.remove('open');
+            elements.trigger.classList.remove('active');
+        }
+        return;
+    }
+    if (!engine.active) return;
+    const t = e.touches[0];
+    const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
+    const touchFreq = 440 * Math.pow(2, (midi - 69) / 12);
+    const obs = new Observer(t.clientX, t.clientY, 400, 4000); obs.linkTone(touchFreq);
+    observers.push(obs);
+    engine.spawnOrganicSound(touchFreq, (t.clientX/canvas.width-0.5)*2, 1.0);
+});
+
+window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
