@@ -10,7 +10,6 @@
             -webkit-tap-highlight-color: transparent;
             user-select: none;
             outline: none;
-            /* ロングタップによるメニュー表示を抑制 */
             -webkit-touch-callout: none;
         }
 
@@ -179,7 +178,6 @@
             letter-spacing: 0.1em;
         }
 
-        /* ── Credits ── */
         .panel-footer {
             margin-top: 12px;
             padding-top: 24px;
@@ -242,11 +240,10 @@
         </label>
     </div>
 
-    <!-- Footer Credits Section -->
     <div class="panel-footer">
         <p>Presented by: ARPeggioRev2</p>
         <p>Program assisted by: Gemini</p>
-        <p>こみゃくのもり Version: 1.2.1</p>
+        <p>こみゃくのもり Version: 1.2.1-choir</p>
         <p>
             免責事項 このコンテンツは個人による非公式の二次創作です。利用の際は公式の二次創作<a href="https://www.expo2025.or.jp/news/news-20260330-01/" target="_blank">ガイドライン</a>を遵守してください。
         </p>
@@ -277,6 +274,13 @@ const MIN_MARGIN = 15;
 const MASTER_SCALE = [40, 47, 52, 56, 59, 64, 66, 68, 71, 73, 76];
 
 /* ── SOUND ENGINE ── */
+
+const CHOIR_SETTINGS = {
+    clarity: 0.99,      // Vowel Openness 99%
+    instability: 0,     // Vibrato Depth 0%
+    breath: 4,          // Breathiness 4%
+    numVoices: 1        // Choir Size 1
+};
 
 class BirdChirpEngine {
     constructor(audioCtx, destination) {
@@ -394,10 +398,20 @@ class SanctuaryEngine {
         this.guitar.gainNode.connect(this.delay); this.guitar.gainNode.connect(this.convolver);
         this.delay.connect(this.masterOut); this.reverbGain.connect(this.masterOut);
         
+        this.noiseBuffer = this.makeNoiseBuffer(10);
         this.active = false;
         this.beatCount = 0;
         this.currentIdx5 = 0; this.currentIdx7 = 0;
     }
+    
+    makeNoiseBuffer(sec) {
+        const sr = this.ctx.sampleRate;
+        const buf = this.ctx.createBuffer(1, sr * sec, sr);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        return buf;
+    }
+
     generateIR() {
         const length = this.ctx.sampleRate * 8.0;
         const buffer = this.ctx.createBuffer(2, length, this.ctx.sampleRate);
@@ -409,34 +423,110 @@ class SanctuaryEngine {
         }
         this.convolver.buffer = buffer;
     }
-    playTone(freq, pan, richness, attack, release) {
+
+    createChoirVoice(freq, startTime, duration, target) {
+        const osc = this.ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+
+        const preEmph = this.ctx.createBiquadFilter();
+        preEmph.type = 'highshelf';
+        preEmph.frequency.value = 1000;
+        preEmph.gain.value = -6;
+        osc.connect(preEmph);
+
+        const vibLFO = this.ctx.createOscillator();
+        const vibAmt = this.ctx.createGain();
+        vibLFO.frequency.value = 0.5;
+        const vibDepth = freq * (0.004 + CHOIR_SETTINGS.instability * 0.00028);
+        vibAmt.gain.setValueAtTime(vibDepth, startTime);
+        vibLFO.connect(vibAmt);
+        vibAmt.connect(osc.frequency);
+
+        const formantDefs = [
+            { cf: 850,  bw: 95,  g: 0.65 * CHOIR_SETTINGS.clarity },
+            { cf: 1400, bw: 105, g: 0.42 * CHOIR_SETTINGS.clarity },
+            { cf: 2750, bw: 140, g: 0.22 * CHOIR_SETTINGS.clarity },
+            { cf: 3500, bw: 220, g: 0.10 * CHOIR_SETTINGS.clarity },
+        ];
+
+        const voiceOut = this.ctx.createGain();
+        voiceOut.gain.setValueAtTime(0, startTime);
+        voiceOut.gain.linearRampToValueAtTime(0.14, startTime + 0.8);
+        voiceOut.gain.setValueAtTime(0.14, startTime + duration - 0.8);
+        voiceOut.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+        formantDefs.forEach(fd => {
+            const filt = this.ctx.createBiquadFilter();
+            filt.type = 'bandpass';
+            filt.frequency.value = fd.cf;
+            filt.Q.value = fd.cf / fd.bw;
+            const fgain = this.ctx.createGain();
+            fgain.gain.value = fd.g;
+            preEmph.connect(filt);
+            filt.connect(fgain);
+            fgain.connect(voiceOut);
+        });
+
+        voiceOut.connect(target);
+        osc.start(startTime);
+        osc.stop(startTime + duration + 0.1);
+        vibLFO.start(startTime);
+        vibLFO.stop(startTime + duration + 0.1);
+    }
+
+    createBreath(startTime, duration, target) {
+        if (CHOIR_SETTINGS.breath < 1) return;
+        const src = this.ctx.createBufferSource();
+        src.buffer = this.noiseBuffer;
+        src.loop = true;
+        const nEnv = this.ctx.createGain();
+        nEnv.gain.setValueAtTime(0, startTime);
+        nEnv.gain.linearRampToValueAtTime(CHOIR_SETTINGS.breath * 0.0012, startTime + 0.8);
+        nEnv.gain.setValueAtTime(CHOIR_SETTINGS.breath * 0.0012, startTime + duration - 0.8);
+        nEnv.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+        [{ cf: 850, bw: 200 }, { cf: 1400, bw: 250 }, { cf: 2750, bw: 350 }].forEach(fd => {
+            const filt = this.ctx.createBiquadFilter();
+            filt.type = 'bandpass';
+            filt.frequency.value = fd.cf;
+            filt.Q.value = fd.cf / fd.bw;
+            const fg = this.ctx.createGain();
+            fg.gain.value = 0.5;
+            src.connect(filt);
+            filt.connect(fg);
+            fg.connect(nEnv);
+        });
+
+        nEnv.connect(target);
+        src.start(startTime);
+        src.stop(startTime + duration + 0.4);
+    }
+
+    spawnOrganicSound(freq, pan = 0, richness = 1.0) {
         const now = this.ctx.currentTime;
+        const duration = 5.0 + Math.random() * 1.5;
         const panner = this.ctx.createStereoPanner();
         panner.pan.value = pan;
-        const osc = this.ctx.createOscillator();
-        const g = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now);
-        g.gain.setValueAtTime(0, now);
-        g.gain.linearRampToValueAtTime(0.2 * richness, now + attack); 
-        g.gain.exponentialRampToValueAtTime(0.0001, now + attack + release);
-        osc.connect(g).connect(panner).connect(this.mixerAmb);
-        osc.start(now); osc.stop(now + attack + release + 0.1);
-    }
-    spawnOrganicSound(freq, pan = 0, richness = 1.0) {
-        this.playTone(freq, pan, richness, 0.8, 4.5);
+        
+        const localGain = this.ctx.createGain();
+        localGain.gain.value = richness * 1.2; // 音量調整
+
+        localGain.connect(panner).connect(this.mixerAmb);
+        
+        for (let i = 0; i < CHOIR_SETTINGS.numVoices; i++) {
+            this.createChoirVoice(freq, now, duration, localGain);
+        }
+        this.createBreath(now, duration, localGain);
     }
 
     playChordSequence(notes) {
         if (!this.active) return;
-        
         const noteCount = 2 + Math.floor(Math.random() * (notes.length - 1));
         const activeNotes = notes.slice(0, noteCount);
-        
         activeNotes.forEach((midi, i) => {
             const jitter = Math.random() * 200; 
             const delayTime = i * (STEP_4TH * 1.5) + jitter; 
-            
             setTimeout(() => {
                 const freq = 440 * Math.pow(2, (midi - 69) / 12);
                 const obs = createObserverAtRandom(freq);
@@ -450,7 +540,6 @@ class SanctuaryEngine {
         const tick = () => {
             if (!this.active) return;
             this.beatCount++;
-            
             if (this.beatCount % 1 === 0) {
                 this.currentIdx5 = (this.currentIdx5 + 1) % 5;
                 const freq = this.guitar.playNote(this.guitar.notes5[this.currentIdx5], -0.6);
@@ -475,12 +564,8 @@ class SanctuaryEngine {
                 } else if (dice < 0.5) { 
                     const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
                     const freq = 440 * Math.pow(2, (midi - 69) / 12);
-                    
                     const obs = createObserverAtRandom(freq);
-                    if (obs) {
-                        const pan = (obs.x / canvas.width - 0.5) * 2;
-                        this.spawnOrganicSound(freq, pan, 1.0);
-                    }
+                    if (obs) this.spawnOrganicSound(freq, (obs.x / canvas.width - 0.5) * 2, 1.0);
                 }
             }
             setTimeout(tick, STEP_4TH);
@@ -523,7 +608,6 @@ class Observer {
         this.pupilRelX = 0; this.pupilRelY = 0;
         this.targetEyeX = 0; this.targetEyeY = 0;
         this.targetPupilX = 0; this.targetPupilY = 0;
-        
         this.gazeUpdateInterval = 8 + Math.floor(Math.random() * 4); 
         this.gazeUpdateOffset = Math.floor(Math.random() * 8); 
         this.lastUpdateBeat = -1;
@@ -549,16 +633,13 @@ class Observer {
     update(now, beatCount) {
         const elapsed = now - this.birth;
         if (elapsed < this.attack) { 
-            // 登場（フェードイン）
             this.alpha = elapsed / this.attack; 
         }
         else if (elapsed < this.life) { 
-            // 滞在：ライフの80%まではくっきり表示し、そこから急減衰させる
             const stayProgress = (elapsed - this.attack) / (this.life - this.attack);
             if (stayProgress < 0.8) {
                 this.alpha = 1.0;
             } else {
-                // 残り20%の時間でスッと消える
                 this.alpha = 1.0 - (stayProgress - 0.8) / 0.2;
             }
         }
@@ -579,11 +660,8 @@ class Observer {
         ctx.save();
         ctx.translate(this.x, this.y);
         ctx.globalAlpha = this.alpha;
-        
         ctx.beginPath(); ctx.arc(0, 0, this.bodyR, 0, Math.PI * 2);
         ctx.fillStyle = this.bodyColor; ctx.fill();
-        
-        // 目はボディが消える少し前にパッと消すようなイメージ
         const eyeAlpha = Math.max(0, (this.alpha - 0.1) / 0.9);
         if (eyeAlpha > 0) {
             ctx.globalAlpha = eyeAlpha * this.alpha;
@@ -645,10 +723,7 @@ const elements = {
     resetBg: document.getElementById('reset-bg-btn')
 };
 
-// 全体的なコンテキストメニューの禁止
-window.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-}, false);
+window.addEventListener('contextmenu', (e) => { e.preventDefault(); }, false);
 
 elements.startBtn.onclick = () => {
     document.getElementById('overlay').classList.add('fade-out');
