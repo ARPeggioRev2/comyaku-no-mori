@@ -335,11 +335,8 @@
     
     <div id="settings-trigger">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- ホームアイコン比率調整：体(24)を100%としたとき、白目42.5%(半径5.1)、瞳18.7%(半径2.244) -->
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 a2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2.83 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-            <!-- White Eye (42.5% of 12radius=6) -> 5.1 -->
             <circle cx="12" cy="12" r="5.1" fill="white"></circle>
-            <!-- Blue Pupil (18.7% of 12radius=6) -> 2.244 -->
             <circle cx="13.5" cy="12" r="2.244" fill="var(--color-eye-blue)"></circle>
         </svg>
     </div>
@@ -371,7 +368,6 @@
             </div>
             <div id="mute-choir" class="icon-action-btn" title="Co-MYAKU">
                 <svg width="24" height="24" viewBox="0 0 24 24">
-                    <!-- ミュートチャンネルアイコン比率調整：体(9)を100%としたとき、白目42.5%(3.825)、瞳18.7%(1.683) -->
                     <circle cx="12" cy="12" r="9" fill="#00A59E" />
                     <circle cx="15.5" cy="8.5" r="3.825" fill="white" />
                     <circle cx="16.7" cy="7.7" r="1.683" fill="#0068B7" />
@@ -415,7 +411,7 @@ const ECHO_DOTTED_8TH = (STEP_4TH_BASE / 2) * 1.5;
 
 /* VOLUME LOGIC CONFIGURATION (Updated to start at 70%) */
 const UI_FULL_LUFS = -14.0;
-const INITIAL_UI_PERCENT = 70.0; // Fixed at 70% as requested
+const INITIAL_UI_PERCENT = 70.0; 
 
 const PALETTE = {
     BLUE:       '#0068B7',
@@ -815,10 +811,12 @@ class Observer {
         this.gazeUpdateInterval = 8 + Math.floor(Math.random() * 4); 
         this.gazeUpdateOffset = Math.floor(Math.random() * 8); 
         this.lastUpdateBeat = -1;
+
+        // 個体ごとの基準となる注視方向（個性）を決定
+        this.baseAngle = Math.random() * Math.PI * 2;
     }
     linkTone(freq) {
         this.bodyR = BASE_BODY_R * Math.pow(440 / freq, 0.45);
-        // 通常のオブザーバーの比率は従来通り維持
         this.whiteEyeR = this.bodyR * (68/160); 
         this.pupilR = this.bodyR * (30/160);
         this.eyeLimit = Math.max(0, this.bodyR - this.whiteEyeR); 
@@ -826,13 +824,14 @@ class Observer {
         this.updateGazeTarget();
     }
     updateGazeTarget() {
-        const eyeAngle = (Math.random() * 0.4 - 0.2) - (Math.PI / 4); 
-        const eyeDist = this.eyeLimit * (0.7 + Math.random() * 0.3); 
+        // 固有の baseAngle を中心に少しだけ揺らぎを加える
+        const eyeAngle = this.baseAngle + (Math.random() * 0.6 - 0.3);
+        const eyeDist = this.eyeLimit * (0.6 + Math.random() * 0.4); 
         this.targetEyeX = Math.cos(eyeAngle) * eyeDist; 
         this.targetEyeY = Math.sin(eyeAngle) * eyeDist;
 
-        const pupilAngle = (Math.random() * 0.4 - 0.2) - (Math.PI / 4);
-        const pupilDist = this.pupilLimit * (0.6 + Math.random() * 0.4);
+        const pupilAngle = eyeAngle + (Math.random() * 0.4 - 0.2);
+        const pupilDist = this.pupilLimit * (0.5 + Math.random() * 0.5);
         this.targetPupilX = Math.cos(pupilAngle) * pupilDist;
         this.targetPupilY = Math.sin(pupilAngle) * pupilDist;
     }
@@ -1068,7 +1067,6 @@ window.addEventListener('touchstart', (e) => {
 window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
-// 初期表示更新
 elements.volVal.textContent = INITIAL_UI_PERCENT.toFixed(1) + '%';
 
 requestAnimationFrame(render);
