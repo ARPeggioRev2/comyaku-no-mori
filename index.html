@@ -13,15 +13,16 @@
     <!-- Dynamic Icon Generation (Emerald Co-MYAKU Balance) -->
     <script>
         const createIcon = () => {
+            // 指示に基づき比率を調整：体(210)を100%としたとき、白目42.5%(89.25)、瞳18.7%(39.27)
             const svg = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
                 <rect width="512" height="512" rx="112" fill="#FFFFFF"/>
-                <!-- Background Forest -->
+                <!-- Background Forest (Body 100%) -->
                 <circle cx="256" cy="256" r="210" fill="#00A59E"/>
-                <!-- White Eye -->
-                <circle cx="340" cy="180" r="85" fill="white"/>
-                <!-- Blue Pupil (The Core) -->
-                <circle cx="365" cy="165" r="28" fill="#0068B7"/>
+                <!-- White Eye (42.5% of 210 = 89.25) -->
+                <circle cx="340" cy="180" r="89.25" fill="white"/>
+                <!-- Blue Pupil (18.7% of 210 = 39.27) -->
+                <circle cx="365" cy="165" r="39.27" fill="#0068B7"/>
             </svg>`;
             return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
         };
@@ -334,9 +335,12 @@
     
     <div id="settings-trigger">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- ホームアイコン比率調整：体(24)を100%としたとき、白目42.5%(半径5.1)、瞳18.7%(半径2.244) -->
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 a2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2.83 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-            <circle cx="12" cy="12" r="3" fill="white"></circle>
-            <circle cx="13.5" cy="12" r="1.3" fill="var(--color-eye-blue)"></circle>
+            <!-- White Eye (42.5% of 12radius=6) -> 5.1 -->
+            <circle cx="12" cy="12" r="5.1" fill="white"></circle>
+            <!-- Blue Pupil (18.7% of 12radius=6) -> 2.244 -->
+            <circle cx="13.5" cy="12" r="2.244" fill="var(--color-eye-blue)"></circle>
         </svg>
     </div>
 </div>
@@ -367,9 +371,10 @@
             </div>
             <div id="mute-choir" class="icon-action-btn" title="Co-MYAKU">
                 <svg width="24" height="24" viewBox="0 0 24 24">
+                    <!-- ミュートチャンネルアイコン比率調整：体(9)を100%としたとき、白目42.5%(3.825)、瞳18.7%(1.683) -->
                     <circle cx="12" cy="12" r="9" fill="#00A59E" />
-                    <circle cx="15.5" cy="8.5" r="3.5" fill="white" />
-                    <circle cx="16.7" cy="7.7" r="1.2" fill="#0068B7" />
+                    <circle cx="15.5" cy="8.5" r="3.825" fill="white" />
+                    <circle cx="16.7" cy="7.7" r="1.683" fill="#0068B7" />
                 </svg>
             </div>
         </div>
@@ -813,6 +818,7 @@ class Observer {
     }
     linkTone(freq) {
         this.bodyR = BASE_BODY_R * Math.pow(440 / freq, 0.45);
+        // 通常のオブザーバーの比率は従来通り維持
         this.whiteEyeR = this.bodyR * (68/160); 
         this.pupilR = this.bodyR * (30/160);
         this.eyeLimit = Math.max(0, this.bodyR - this.whiteEyeR); 
@@ -1019,23 +1025,18 @@ elements.bgInput.onchange = (e) => {
 };
 
 window.addEventListener('touchstart', (e) => {
-    // 1. オーバーレイが表示されている間は背景イベントを無視
     if (document.getElementById('overlay').offsetParent !== null && !document.getElementById('overlay').classList.contains('fade-out')) return;
     
-    // 2. メニューが開いている時
     if (elements.panel.classList.contains('open')) {
-        // メニュー外のクリックであれば、メニューを閉じる
         if (!elements.panel.contains(e.target) && !elements.controls.contains(e.target)) {
             elements.panel.classList.remove('open');
             elements.trigger.classList.remove('active');
             e.preventDefault();
             return; 
         }
-        // メニュー内クリックなら何もしない
         return;
     }
 
-    // 3. UIコントロール要素上でのタッチは波紋を発生させない
     if (elements.controls.contains(e.target) || e.target.closest('.header-controls') || e.target.closest('#control-panel')) {
         return;
     }
