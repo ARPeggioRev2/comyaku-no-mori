@@ -4,6 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>こみゃくのもり</title>
+    
+    <!-- PWA Settings -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="こみゃくのもり">
+    
+    <!-- Dynamic Icon Generation (Emerald Co-MYAKU Balance) -->
+    <script>
+        const createIcon = () => {
+            const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+                <rect width="512" height="512" rx="112" fill="#FFFFFF"/>
+                <!-- Background Forest -->
+                <circle cx="256" cy="256" r="210" fill="#00A59E"/>
+                <!-- White Eye -->
+                <circle cx="340" cy="180" r="85" fill="white"/>
+                <!-- Blue Pupil (The Core) -->
+                <circle cx="365" cy="165" r="28" fill="#0068B7"/>
+            </svg>`;
+            return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+        };
+        const iconUrl = createIcon();
+        
+        // Favicon
+        const link = document.createElement('link');
+        link.rel = 'icon';
+        link.href = iconUrl;
+        document.head.appendChild(link);
+        
+        // Apple Touch Icon
+        const appleLink = document.createElement('link');
+        appleLink.rel = 'apple-touch-icon';
+        appleLink.href = iconUrl;
+        document.head.appendChild(appleLink);
+
+        // Web Manifest
+        const manifest = {
+            "name": "こみゃくのもり",
+            "short_name": "こみゃく",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#FFFFFF",
+            "theme_color": "#00A59E",
+            "icons": [{
+                "src": iconUrl,
+                "sizes": "512x512",
+                "type": "image/svg+xml"
+            }]
+        };
+        const manifestStr = JSON.stringify(manifest);
+        const manifestBlob = new Blob([manifestStr], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = manifestURL;
+        document.head.appendChild(manifestLink);
+    </script>
+
     <style>
         *, *::before, *::after { 
             box-sizing: border-box; 
@@ -59,13 +117,29 @@
             align-items: center; justify-content: center;
             background: var(--white);
             transition: opacity 1.6s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
         }
         #overlay.fade-out { opacity: 0; pointer-events: none; }
 
+        .bg-decoration {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(12px);
+            opacity: 0.25;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .deco-1 { width: 180px; height: 180px; background: var(--color-co-myaku); top: 15%; left: 10%; }
+        .deco-2 { width: 120px; height: 120px; background: var(--color-no); bottom: 25%; right: 15%; }
+        .deco-3 { width: 80px; height: 80px; background: var(--color-mori); top: 20%; right: 20%; }
+        .deco-4 { width: 60px; height: 60px; background: var(--color-eye-blue); bottom: 15%; left: 25%; opacity: 0.15; }
+
         .overlay-inner {
+            position: relative;
             display: flex; flex-direction: column; align-items: center;
             animation: overlayReveal 1.2s cubic-bezier(0.4, 0, 0.2, 1) both;
             width: 90%;
+            z-index: 1;
         }
         @keyframes overlayReveal {
             from { opacity: 0; transform: translateY(12px); }
@@ -105,22 +179,47 @@
         }
 
         #start-btn {
-            padding: 18px 64px;
-            background: transparent; color: var(--dark-gray);
-            border: 1px solid rgba(34, 36, 38, 0.2); border-radius: 2px;
+            padding: 18px 80px;
+            background: var(--color-mori); 
+            color: var(--white);
+            border: none; 
+            border-radius: 50px; 
             text-transform: uppercase; letter-spacing: 0.6em;
             font-size: 13px; font-weight: 700;
             transition: all 0.4s ease;
             cursor: pointer;
+            box-shadow: 0 10px 25px rgba(0, 165, 158, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        #start-btn:active { background: var(--dark-gray); color: var(--white); }
+        #start-btn:active { 
+            transform: scale(0.96);
+            background: #008c86;
+            box-shadow: 0 5px 15px rgba(0, 165, 158, 0.2);
+        }
 
+        /* ── ヘッダーコントロール ── */
         .header-controls {
             position: fixed; top: 24px; right: 24px; z-index: 180;
             opacity: 0; pointer-events: none;
             transition: opacity 1s ease;
+            display: flex; flex-direction: column; gap: 12px;
+            align-items: center;
         }
         .header-controls.visible { opacity: 1; pointer-events: auto; }
+
+        #playback-toggle {
+            width: 44px; height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: var(--white);
+            background: var(--color-no); 
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            font-weight: 900; 
+        }
+        #playback-toggle.playing { background: var(--emerald); }
 
         #settings-trigger {
             width: 44px; height: 44px;
@@ -134,7 +233,7 @@
         #settings-trigger.active { transform: rotate(45deg); }
 
         #control-panel {
-            position: fixed; top: 80px; right: 24px; z-index: 170;
+            position: fixed; top: 140px; right: 24px; z-index: 170;
             width: 280px; padding: 28px;
             background: var(--panel-bg);
             backdrop-filter: blur(15px);
@@ -142,8 +241,8 @@
             border-radius: 4px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             display: none;
-            flex-direction: column; gap: 28px;
-            max-height: calc(100% - 120px);
+            flex-direction: column; gap: 24px;
+            max-height: calc(100% - 160px);
             overflow-y: auto;
         }
         #control-panel.open { display: flex; animation: panelFadeIn 0.3s ease forwards; }
@@ -173,10 +272,23 @@
 
         .icon-action-btn {
             background: rgba(34, 36, 38, 0.05); border: 1px solid rgba(34, 36, 38, 0.1);
-            padding: 12px; border-radius: 2px; cursor: pointer;
+            padding: 10px; border-radius: 2px; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 11px;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.1em; transition: all 0.2s ease;
         }
+        .icon-action-btn.active {
+            background: #eee; color: #aaa; border-color: rgba(34,36,38,0.1);
+            filter: grayscale(1);
+            opacity: 0.5;
+        }
+
+        .tempo-container { display: flex; gap: 8px; }
+        .tempo-btn {
+            flex: 1; padding: 10px; font-size: 10px; font-weight: 700;
+            background: rgba(34, 36, 38, 0.05); border: 1px solid rgba(34, 36, 38, 0.1);
+            cursor: pointer; border-radius: 2px; transition: all 0.2s ease;
+        }
+        .tempo-btn.active { background: var(--color-eye-blue); color: var(--white); border-color: var(--color-eye-blue); }
 
         .panel-footer {
             margin-top: 12px;
@@ -200,6 +312,11 @@
 <div id="bg-container"></div>
 
 <div id="overlay">
+    <div class="bg-decoration deco-1"></div>
+    <div class="bg-decoration deco-2"></div>
+    <div class="bg-decoration deco-3"></div>
+    <div class="bg-decoration deco-4"></div>
+
     <div class="overlay-inner">
         <div class="title-mark">Co-MYAKU FAN ART</div>
         <div class="title-main">
@@ -211,9 +328,13 @@
 </div>
 
 <div class="header-controls" id="header-controls">
+    <div id="playback-toggle" class="playing">
+        <span id="playback-icon" style="font-size: 20px;">▢</span>
+    </div>
+    
     <div id="settings-trigger">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 a2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 a2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2.83 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
             <circle cx="12" cy="12" r="3" fill="white"></circle>
             <circle cx="13.5" cy="12" r="1.3" fill="var(--color-eye-blue)"></circle>
         </svg>
@@ -222,9 +343,38 @@
 
 <div id="control-panel">
     <div class="control-group">
-        <div class="control-label">MASTER VOLUME <span id="vol-val">3.0</span></div>
-        <input type="range" id="master-vol" min="0" max="6" step="0.1" value="3.0">
+        <div class="control-label">MASTER VOLUME <span id="vol-val">---%</span></div>
+        <input type="range" id="master-vol" min="0" max="100" step="0.1" value="70.0">
     </div>
+
+    <div class="control-group">
+        <div class="control-label">TEMPO</div>
+        <div class="tempo-container">
+            <button class="tempo-btn active" data-scale="1.0">1/1 (120)</button>
+            <button class="tempo-btn" data-scale="2.0">1/2 (60)</button>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <div class="control-label">MUTE CHANNELS</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div id="mute-arpeggio" class="icon-action-btn" title="Particles & Birds">
+                <svg width="24" height="24" viewBox="0 0 24 24">
+                    <circle cx="6" cy="12" r="2.5" fill="#D9DE00" />
+                    <circle cx="13" cy="7" r="2.5" fill="#C9E0B8" />
+                    <circle cx="18" cy="16" r="2.5" fill="#00A59E" />
+                </svg>
+            </div>
+            <div id="mute-choir" class="icon-action-btn" title="Co-MYAKU">
+                <svg width="24" height="24" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9" fill="#00A59E" />
+                    <circle cx="15.5" cy="8.5" r="3.5" fill="white" />
+                    <circle cx="16.7" cy="7.7" r="1.2" fill="#0068B7" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
     <div class="control-group">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <div class="control-label">BACKGROUND PHOTO</div>
@@ -243,7 +393,7 @@
     <div class="panel-footer">
         <p>Presented by: ARPeggioRev2</p>
         <p>Program assisted by: Gemini</p>
-        <p>こみゃくのもり Version: 1.2.1-choir</p>
+        <p>こみゃくのもり Version: 1.5.1</p>
         <p>
             免責事項 このコンテンツは個人による非公式の二次創作です。利用の際は公式の二次創作<a href="https://www.expo2025.or.jp/news/news-20260330-01/" target="_blank">ガイドライン</a>を遵守してください。
         </p>
@@ -254,9 +404,13 @@
 
 <script>
 /* ── Settings ── */
-const BPM = 120;
-const STEP_4TH = (60000 / BPM); 
-const ECHO_DOTTED_8TH = (STEP_4TH / 2) * 1.5; 
+const BPM_BASE = 120;
+const STEP_4TH_BASE = (60000 / BPM_BASE); 
+const ECHO_DOTTED_8TH = (STEP_4TH_BASE / 2) * 1.5; 
+
+/* VOLUME LOGIC CONFIGURATION (Updated to start at 70%) */
+const UI_FULL_LUFS = -14.0;
+const INITIAL_UI_PERCENT = 70.0; // Fixed at 70% as requested
 
 const PALETTE = {
     BLUE:       '#0068B7',
@@ -273,13 +427,21 @@ const MIN_MARGIN = 15;
 
 const MASTER_SCALE = [40, 47, 52, 56, 59, 64, 66, 68, 71, 73, 76];
 
+/* ── AUDIO STATE ── */
+let isMasterPlaying = false;
+const audioState = {
+    tempoScale: 1.0,
+    arpeggioMuted: false, 
+    choirMuted: false    
+};
+
 /* ── SOUND ENGINE ── */
 
 const CHOIR_SETTINGS = {
-    clarity: 0.99,      // Vowel Openness 99%
-    instability: 0,     // Vibrato Depth 0%
-    breath: 4,          // Breathiness 4%
-    numVoices: 1        // Choir Size 1
+    clarity: 0.99,      
+    instability: 0,     
+    breath: 4,          
+    numVoices: 1        
 };
 
 class BirdChirpEngine {
@@ -289,6 +451,8 @@ class BirdChirpEngine {
         this.musicalNotes = [88, 91, 93, 95, 98, 100]; 
     }
     playChirp(time, count = 1) {
+        if (audioState.arpeggioMuted) return;
+
         const startTime = time || this.ctx.currentTime;
         for (let i = 0; i < count; i++) {
             const now = startTime + (i * 0.12);
@@ -327,7 +491,7 @@ class GuitarArpeggioEngine {
     constructor(audioCtx, destination) {
         this.ctx = audioCtx;
         this.notes5 = [52, 59, 64, 68, 71]; 
-        this.notes7 = [40, 47, 52, 56, 59, 64, 66];
+        this.notes7 = [28, 47, 52, 56, 59, 64, 66];
         this.gainNode = this.ctx.createGain();
         this.gainNode.gain.value = 0.3;
         this.gainNode.connect(destination);
@@ -336,16 +500,19 @@ class GuitarArpeggioEngine {
         const targetArray = Math.random() > 0.5 ? this.notes5 : this.notes7;
         const idx = Math.floor(Math.random() * targetArray.length);
         const currentNote = targetArray[idx];
-        if ([40, 52, 64, 76].includes(currentNote)) return;
+        if ([28, 40, 52, 64, 76].includes(currentNote)) return;
         targetArray[idx] = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
     }
     playNote(midi, pan = 0) {
+        if (audioState.arpeggioMuted) return null;
+
         const now = this.ctx.currentTime;
         const freq = 440 * Math.pow(2, (midi - 69) / 12);
         const mainGain = this.ctx.createGain();
         const panner = this.ctx.createStereoPanner();
         panner.pan.setValueAtTime(pan, now);
-        const attack = 0.05; const decay = 2.5; 
+        const attack = 0.05; 
+        const decay = 2.5; 
         
         [1, 2, 4].forEach((h) => {
             const osc = this.ctx.createOscillator();
@@ -359,8 +526,10 @@ class GuitarArpeggioEngine {
         });
 
         const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
         filter.frequency.setValueAtTime(freq * 2.8, now);
         filter.frequency.exponentialRampToValueAtTime(freq * 0.4, now + decay);
+        
         mainGain.connect(filter).connect(panner).connect(this.gainNode);
         return freq;
     }
@@ -387,7 +556,7 @@ class SanctuaryEngine {
         this.convolver.connect(this.reverbGain);
         
         this.masterOut = this.ctx.createGain();
-        this.masterOut.gain.value = 3.0;
+        this.masterOut.gain.value = (INITIAL_UI_PERCENT / 100); 
         this.masterOut.connect(this.ctx.destination);
         
         this.guitar = new GuitarArpeggioEngine(this.ctx, this.masterOut); 
@@ -399,9 +568,9 @@ class SanctuaryEngine {
         this.delay.connect(this.masterOut); this.reverbGain.connect(this.masterOut);
         
         this.noiseBuffer = this.makeNoiseBuffer(10);
-        this.active = false;
         this.beatCount = 0;
         this.currentIdx5 = 0; this.currentIdx7 = 0;
+        this.tickTimeout = null;
     }
     
     makeNoiseBuffer(sec) {
@@ -504,13 +673,16 @@ class SanctuaryEngine {
     }
 
     spawnOrganicSound(freq, pan = 0, richness = 1.0) {
+        if (audioState.choirMuted) return;
+
         const now = this.ctx.currentTime;
-        const duration = 5.0 + Math.random() * 1.5;
+        const duration = 5.0 + Math.random() * 1.5; 
+        
         const panner = this.ctx.createStereoPanner();
         panner.pan.value = pan;
         
         const localGain = this.ctx.createGain();
-        localGain.gain.value = richness * 1.2; // 音量調整
+        localGain.gain.value = richness * 1.2; 
 
         localGain.connect(panner).connect(this.mixerAmb);
         
@@ -521,13 +693,14 @@ class SanctuaryEngine {
     }
 
     playChordSequence(notes) {
-        if (!this.active) return;
+        if (!isMasterPlaying || audioState.choirMuted) return;
         const noteCount = 2 + Math.floor(Math.random() * (notes.length - 1));
         const activeNotes = notes.slice(0, noteCount);
         activeNotes.forEach((midi, i) => {
             const jitter = Math.random() * 200; 
-            const delayTime = i * (STEP_4TH * 1.5) + jitter; 
+            const delayTime = i * (STEP_4TH_BASE * 1.5) + jitter; 
             setTimeout(() => {
+                if (!isMasterPlaying || audioState.choirMuted) return;
                 const freq = 440 * Math.pow(2, (midi - 69) / 12);
                 const obs = createObserverAtRandom(freq);
                 if (obs) this.spawnOrganicSound(freq, (obs.x / canvas.width - 0.5) * 2, 1.0);
@@ -536,41 +709,65 @@ class SanctuaryEngine {
     }
 
     startAuto() {
-        this.active = true;
         const tick = () => {
-            if (!this.active) return;
-            this.beatCount++;
-            if (this.beatCount % 1 === 0) {
-                this.currentIdx5 = (this.currentIdx5 + 1) % 5;
-                const freq = this.guitar.playNote(this.guitar.notes5[this.currentIdx5], -0.6);
-                const x = (0.05 + (this.currentIdx5 / 4) * 0.4) * canvas.width;
-                particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*canvas.height, freq, GREEN_SET[this.currentIdx5 % 2]));
-            }
-            if (this.beatCount % 1 === 0) {
-                this.currentIdx7 = (this.currentIdx7 + 1) % 7;
-                const freq = this.guitar.playNote(this.guitar.notes7[this.currentIdx7], 0.6);
-                const x = (0.55 + (this.currentIdx7 / 6) * 0.4) * canvas.width;
-                particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*canvas.height, freq, GREEN_SET[2 + (this.currentIdx7 % 2)]));
-            }
-            if (this.beatCount % 16 === 0) this.guitar.evolve();
-            if (this.beatCount % 2 === 0 && Math.random() < 0.1) this.birds.playChirp(this.ctx.currentTime, 1);
+            if (!isMasterPlaying) return;
             
-            if (this.beatCount % 4 === 0) { 
-                const dice = Math.random();
-                if (dice < 0.15) { 
-                    const chordBase = Math.random() > 0.5 ? [2, 4, 6, 8] : [1, 3, 5, 7];
-                    const chord = chordBase.map(idx => MASTER_SCALE[idx % MASTER_SCALE.length]);
-                    this.playChordSequence(chord);
-                } else if (dice < 0.5) { 
-                    const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
-                    const freq = 440 * Math.pow(2, (midi - 69) / 12);
-                    const obs = createObserverAtRandom(freq);
-                    if (obs) this.spawnOrganicSound(freq, (obs.x / canvas.width - 0.5) * 2, 1.0);
+            const stepInterval = (STEP_4TH_BASE / 2) * audioState.tempoScale;
+            this.beatCount++; 
+
+            const isRest = audioState.tempoScale >= 2.0 && Math.random() < 0.5;
+
+            if (!isRest) {
+                if (!audioState.arpeggioMuted) {
+                    if (this.beatCount % 2 === 0) {
+                        this.currentIdx5 = (this.currentIdx5 + 1) % 5;
+                        const freq5 = this.guitar.playNote(this.guitar.notes5[this.currentIdx5], -0.6);
+                        if (freq5) {
+                            const x = (0.05 + (this.currentIdx5 / 4) * 0.4) * canvas.width;
+                            particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*canvas.height, freq5, GREEN_SET[this.currentIdx5 % 2]));
+                        }
+                    } else {
+                        this.currentIdx7 = (this.currentIdx7 + 1) % 7;
+                        const freq7 = this.guitar.playNote(this.guitar.notes7[this.currentIdx7], 0.6);
+                        if (freq7) {
+                            const x = (0.55 + (this.currentIdx7 / 6) * 0.4) * canvas.width;
+                            particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*canvas.height, freq7, GREEN_SET[2 + (this.currentIdx7 % 2)]));
+                        }
+                    }
                 }
             }
-            setTimeout(tick, STEP_4TH);
+
+            if (this.beatCount % 2 === 0) {
+                const quarterCount = this.beatCount / 2;
+                if (quarterCount % 16 === 0) this.guitar.evolve();
+                if (quarterCount % 8 === 0 && !audioState.arpeggioMuted) {
+                    this.birds.playChirp(this.ctx.currentTime, 1);
+                }
+                if (quarterCount % 4 === 0 && !audioState.choirMuted) { 
+                    const dice = Math.random();
+                    if (dice < 0.05) { 
+                        const chordBase = Math.random() > 0.5 ? [2, 4, 6, 8] : [1, 3, 5, 7];
+                        const chord = chordBase.map(idx => MASTER_SCALE[idx % MASTER_SCALE.length]);
+                        this.playChordSequence(chord);
+                    } else if (dice < 0.4) { 
+                        const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
+                        const freq = 440 * Math.pow(2, (midi - 69) / 12);
+                        const obs = createObserverAtRandom(freq);
+                        if (obs) this.spawnOrganicSound(freq, (obs.x / canvas.width - 0.5) * 2, 1.0);
+                    }
+                }
+            }
+            
+            this.tickTimeout = setTimeout(tick, stepInterval);
         };
         tick();
+    }
+
+    stopAuto() {
+        if (this.tickTimeout) {
+            clearTimeout(this.tickTimeout);
+            this.tickTimeout = null;
+        }
     }
 }
 
@@ -602,7 +799,9 @@ class Observer {
     constructor(x, y, attackMs, releaseMs) {
         this.x = x; this.y = y; this.bodyR = BASE_BODY_R; 
         this.bodyColor = GREEN_SET[Math.floor(Math.random() * GREEN_SET.length)];
-        this.birth = performance.now(); this.life = attackMs + releaseMs; this.attack = attackMs;
+        this.birth = performance.now(); 
+        this.life = (attackMs + releaseMs); 
+        this.attack = attackMs;
         this.dead = false; this.alpha = 0;
         this.eyeX = 0; this.eyeY = 0;
         this.pupilRelX = 0; this.pupilRelY = 0;
@@ -621,12 +820,13 @@ class Observer {
         this.updateGazeTarget();
     }
     updateGazeTarget() {
-        const eyeAngle = Math.random() * Math.PI * 2;
-        const eyeDist = Math.random() * this.eyeLimit; 
+        const eyeAngle = (Math.random() * 0.4 - 0.2) - (Math.PI / 4); 
+        const eyeDist = this.eyeLimit * (0.7 + Math.random() * 0.3); 
         this.targetEyeX = Math.cos(eyeAngle) * eyeDist; 
         this.targetEyeY = Math.sin(eyeAngle) * eyeDist;
-        const pupilAngle = Math.random() * Math.PI * 2;
-        const pupilDist = Math.random() * this.pupilLimit;
+
+        const pupilAngle = (Math.random() * 0.4 - 0.2) - (Math.PI / 4);
+        const pupilDist = this.pupilLimit * (0.6 + Math.random() * 0.4);
         this.targetPupilX = Math.cos(pupilAngle) * pupilDist;
         this.targetPupilY = Math.sin(pupilAngle) * pupilDist;
     }
@@ -698,7 +898,7 @@ function createObserverAtRandom(freq) {
 
 function render(now) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const beat = engine.active ? engine.beatCount : 0;
+    const beat = engine.beatCount;
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i]; p.update(now);
         if (p.dead) { particles.splice(i, 1); } else { p.draw(ctx); }
@@ -714,21 +914,75 @@ function render(now) {
 const elements = {
     startBtn: document.getElementById('start-btn'),
     controls: document.getElementById('header-controls'),
+    playbackToggle: document.getElementById('playback-toggle'),
+    playbackIcon: document.getElementById('playback-icon'),
     trigger: document.getElementById('settings-trigger'),
     panel: document.getElementById('control-panel'),
     vol: document.getElementById('master-vol'),
     volVal: document.getElementById('vol-val'),
     bgInput: document.getElementById('bg-input'),
     bgCont: document.getElementById('bg-container'),
-    resetBg: document.getElementById('reset-bg-btn')
+    resetBg: document.getElementById('reset-bg-btn'),
+    tempoBtns: document.querySelectorAll('.tempo-btn'),
+    muteArpeggio: document.getElementById('mute-arpeggio'),
+    muteChoir: document.getElementById('mute-choir')
 };
 
 window.addEventListener('contextmenu', (e) => { e.preventDefault(); }, false);
 
-elements.startBtn.onclick = () => {
+async function togglePlayback() {
+    if (isMasterPlaying) {
+        isMasterPlaying = false;
+        engine.stopAuto();
+        elements.playbackIcon.innerText = "▷";
+        elements.playbackToggle.classList.remove('playing');
+        elements.playbackToggle.style.background = 'var(--color-no)'; 
+    } else {
+        await engine.ctx.resume();
+        isMasterPlaying = true;
+        engine.startAuto();
+        elements.playbackIcon.innerText = "▢";
+        elements.playbackToggle.classList.add('playing');
+        elements.playbackToggle.style.background = 'var(--emerald)'; 
+    }
+}
+
+elements.startBtn.onclick = (e) => {
+    e.stopPropagation();
     document.getElementById('overlay').classList.add('fade-out');
     elements.controls.classList.add('visible');
-    engine.ctx.resume().then(() => engine.startAuto());
+    isMasterPlaying = true;
+    engine.ctx.resume().then(() => {
+        engine.startAuto();
+        elements.playbackToggle.classList.add('playing');
+        elements.playbackToggle.style.background = 'var(--emerald)';
+    });
+};
+
+elements.playbackToggle.onclick = (e) => {
+    e.stopPropagation();
+    togglePlayback();
+};
+
+elements.tempoBtns.forEach(btn => {
+    btn.onclick = (e) => {
+        e.stopPropagation();
+        const scale = parseFloat(btn.dataset.scale);
+        audioState.tempoScale = scale;
+        elements.tempoBtns.forEach(b => b.classList.toggle('active', b === btn));
+    };
+});
+
+elements.muteArpeggio.onclick = (e) => {
+    e.stopPropagation();
+    audioState.arpeggioMuted = !audioState.arpeggioMuted;
+    elements.muteArpeggio.classList.toggle('active', audioState.arpeggioMuted);
+};
+
+elements.muteChoir.onclick = (e) => {
+    e.stopPropagation();
+    audioState.choirMuted = !audioState.choirMuted;
+    elements.muteChoir.classList.toggle('active', audioState.choirMuted);
 };
 
 elements.trigger.onclick = (e) => {
@@ -737,12 +991,22 @@ elements.trigger.onclick = (e) => {
     elements.trigger.classList.toggle('active', open);
 };
 
-elements.resetBg.onclick = () => { elements.bgCont.style.backgroundImage = 'none'; elements.bgInput.value = ''; };
+elements.panel.onclick = (e) => {
+    e.stopPropagation();
+};
 
+elements.resetBg.onclick = (e) => { 
+    e.stopPropagation();
+    elements.bgCont.style.backgroundImage = 'none'; 
+    elements.bgInput.value = ''; 
+};
+
+/* VOLUME CONTROL LOGIC */
 elements.vol.oninput = (e) => {
-    const val = parseFloat(e.target.value);
-    elements.volVal.textContent = val.toFixed(1);
-    engine.masterOut.gain.setTargetAtTime(val, engine.ctx.currentTime, 0.1);
+    const percent = parseFloat(e.target.value);
+    elements.volVal.textContent = percent.toFixed(1) + '%';
+    const gainValue = percent / 100;
+    engine.masterOut.gain.setTargetAtTime(gainValue, engine.ctx.currentTime, 0.1);
 };
 
 elements.bgInput.onchange = (e) => {
@@ -755,24 +1019,57 @@ elements.bgInput.onchange = (e) => {
 };
 
 window.addEventListener('touchstart', (e) => {
+    // 1. オーバーレイが表示されている間は背景イベントを無視
+    if (document.getElementById('overlay').offsetParent !== null && !document.getElementById('overlay').classList.contains('fade-out')) return;
+    
+    // 2. メニューが開いている時
     if (elements.panel.classList.contains('open')) {
+        // メニュー外のクリックであれば、メニューを閉じる
         if (!elements.panel.contains(e.target) && !elements.controls.contains(e.target)) {
             elements.panel.classList.remove('open');
             elements.trigger.classList.remove('active');
+            e.preventDefault();
+            return; 
         }
+        // メニュー内クリックなら何もしない
         return;
     }
-    if (!engine.active) return;
+
+    // 3. UIコントロール要素上でのタッチは波紋を発生させない
+    if (elements.controls.contains(e.target) || e.target.closest('.header-controls') || e.target.closest('#control-panel')) {
+        return;
+    }
+
+    if (!isMasterPlaying) return;
+
     const t = e.touches[0];
     const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
     const touchFreq = 440 * Math.pow(2, (midi - 69) / 12);
-    const obs = new Observer(t.clientX, t.clientY, 400, 4000); obs.linkTone(touchFreq);
+    const r = BASE_BODY_R * Math.pow(440 / touchFreq, 0.45);
+    
+    if (isColliding(t.clientX, t.clientY, r)) return;
+
+    const obs = new Observer(t.clientX, t.clientY, 400, 4000); 
+    obs.linkTone(touchFreq);
     observers.push(obs);
-    engine.spawnOrganicSound(touchFreq, (t.clientX/canvas.width-0.5)*2, 1.0);
-});
+    
+    const now = engine.ctx.currentTime;
+    const duration = 5.0; 
+    const panner = engine.ctx.createStereoPanner();
+    panner.pan.value = (t.clientX / canvas.width - 0.5) * 2;
+    const localGain = engine.ctx.createGain();
+    localGain.gain.value = 1.2;
+    localGain.connect(panner).connect(engine.mixerAmb);
+    engine.createChoirVoice(touchFreq, now, duration, localGain);
+    engine.createBreath(now, duration, localGain);
+}, { passive: false });
 
 window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+
+// 初期表示更新
+elements.volVal.textContent = INITIAL_UI_PERCENT.toFixed(1) + '%';
+
 requestAnimationFrame(render);
 </script>
 </body>
