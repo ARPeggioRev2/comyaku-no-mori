@@ -13,53 +13,33 @@
     <!-- Dynamic Icon Generation (Emerald Co-MYAKU Balance) -->
     <script>
         const createIcon = () => {
-            // 指示に基づき比率を調整：体(210)を100%としたとき、白目42.5%(89.25)、瞳18.7%(39.27)
             const svg = `
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
                 <rect width="512" height="512" rx="112" fill="#FFFFFF"/>
-                <!-- Background Forest (Body 100%) -->
                 <circle cx="256" cy="256" r="210" fill="#00A59E"/>
-                <!-- White Eye (42.5% of 210 = 89.25) -->
                 <circle cx="340" cy="180" r="89.25" fill="white"/>
-                <!-- Blue Pupil (18.7% of 210 = 39.27) -->
                 <circle cx="365" cy="165" r="39.27" fill="#0068B7"/>
             </svg>`;
             return 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
         };
         const iconUrl = createIcon();
-        
-        // Favicon
         const link = document.createElement('link');
-        link.rel = 'icon';
-        link.href = iconUrl;
+        link.rel = 'icon'; link.href = iconUrl;
         document.head.appendChild(link);
-        
-        // Apple Touch Icon
         const appleLink = document.createElement('link');
-        appleLink.rel = 'apple-touch-icon';
-        appleLink.href = iconUrl;
+        appleLink.rel = 'apple-touch-icon'; appleLink.href = iconUrl;
         document.head.appendChild(appleLink);
-
-        // Web Manifest
         const manifest = {
-            "name": "こみゃくのもり",
-            "short_name": "こみゃくのもり",
-            "start_url": ".",
-            "display": "standalone",
-            "background_color": "#FFFFFF",
-            "theme_color": "#00A59E",
-            "icons": [{
-                "src": iconUrl,
-                "sizes": "512x512",
-                "type": "image/svg+xml"
-            }]
+            "name": "こみゃくのもり", "short_name": "こみゃくのもり",
+            "start_url": ".", "display": "standalone",
+            "background_color": "#FFFFFF", "theme_color": "#00A59E",
+            "icons": [{ "src": iconUrl, "sizes": "512x512", "type": "image/svg+xml" }]
         };
         const manifestStr = JSON.stringify(manifest);
         const manifestBlob = new Blob([manifestStr], {type: 'application/json'});
         const manifestURL = URL.createObjectURL(manifestBlob);
         const manifestLink = document.createElement('link');
-        manifestLink.rel = 'manifest';
-        manifestLink.href = manifestURL;
+        manifestLink.rel = 'manifest'; manifestLink.href = manifestURL;
         document.head.appendChild(manifestLink);
     </script>
 
@@ -75,7 +55,7 @@
         :root {
             --emerald:    #00A59E;
             --white:      #FFFFFF;
-            --dark-gray:  #222426; 
+            --dark-gray:  #222426;
             --ink:        var(--dark-gray);
             --panel-bg:   rgba(255, 255, 255, 0.95);
             --color-co-myaku: #D9DE00;
@@ -103,15 +83,12 @@
             background-color: var(--white);
             transition: background-image 0.8s ease;
         }
-
         canvas {
             display: block;
             position: fixed; inset: 0;
             width: 100%; height: 100%;
             z-index: 10;
         }
-
-        /* ── UI ── */
         #overlay {
             position: fixed; inset: 0; z-index: 200;
             display: flex; flex-direction: column;
@@ -187,7 +164,7 @@
             border-radius: 50px; 
             text-transform: uppercase; letter-spacing: 0.6em;
             font-size: 13px; font-weight: 700;
-            transition: all 0.4s ease;
+            transition: background 0.3s, transform 0.3s, box-shadow 0.3s;
             cursor: pointer;
             box-shadow: 0 10px 25px rgba(0, 165, 158, 0.25);
             display: flex;
@@ -199,57 +176,83 @@
             background: #008c86;
             box-shadow: 0 5px 15px rgba(0, 165, 158, 0.2);
         }
-
-        /* ── ヘッダーコントロール ── */
-        .header-controls {
-            position: fixed; top: 24px; right: 24px; z-index: 180;
-            opacity: 0; pointer-events: none;
-            transition: opacity 1s ease;
-            display: flex; flex-direction: column; gap: 12px;
+        .dock {
+            position: fixed;
+            bottom: max(32px, calc(16px + env(safe-area-inset-bottom)));
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 180;
+            display: flex;
             align-items: center;
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 50px;
+            padding: 8px;
+            gap: 4px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+            border: 1px solid rgba(255,255,255,0.7);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1s ease;
         }
-        .header-controls.visible { opacity: 1; pointer-events: auto; }
+        .dock.visible { opacity: 1; pointer-events: auto; }
+
+        .dock-divider {
+            width: 1px;
+            height: 24px;
+            background: rgba(34, 36, 38, 0.12);
+            margin: 0 4px;
+        }
 
         #playback-toggle {
-            width: 44px; height: 44px;
+            width: 48px; height: 48px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: var(--white);
-            background: var(--color-no); 
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-            font-weight: 900; 
+            background: var(--color-no);
+            border-radius: 40px;
+            transition: background 0.3s;
+            font-weight: 900;
+            font-size: 20px;
         }
         #playback-toggle.playing { background: var(--emerald); }
 
         #settings-trigger {
-            width: 44px; height: 44px;
+            width: 48px; height: 48px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; color: var(--white);
             background: var(--emerald);
-            border-radius: 4px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 40px;
             transition: transform 0.4s ease;
         }
         #settings-trigger.active { transform: rotate(45deg); }
+        #panel-backdrop {
+            position: fixed; inset: 0; z-index: 160;
+            background: rgba(0,0,0,0.2);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.35s ease;
+        }
+        #panel-backdrop.open { opacity: 1; pointer-events: auto; }
 
         #control-panel {
-            position: fixed; top: 140px; right: 24px; z-index: 170;
-            width: 280px; padding: 28px;
+            position: fixed; top: 0; right: 0; bottom: 0; z-index: 170;
+            width: 300px; padding: 48px 28px 40px;
             background: var(--panel-bg);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border-radius: 4px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            display: none;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: -12px 0 40px rgba(0,0,0,0.12);
+            display: flex;
             flex-direction: column; gap: 24px;
-            max-height: calc(100% - 160px);
             overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
         }
-        #control-panel.open { display: flex; animation: panelFadeIn 0.3s ease forwards; }
-        @keyframes panelFadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+        #control-panel.open {
+            transform: translateX(0);
+            pointer-events: auto;
         }
 
         .control-group { display: flex; flex-direction: column; gap: 14px; }
@@ -275,7 +278,7 @@
             background: rgba(34, 36, 38, 0.05); border: 1px solid rgba(34, 36, 38, 0.1);
             padding: 10px; border-radius: 2px; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 11px;
-            letter-spacing: 0.1em; transition: all 0.2s ease;
+            letter-spacing: 0.1em; transition: background 0.2s, opacity 0.2s;
         }
         .icon-action-btn.active {
             background: #eee; color: #aaa; border-color: rgba(34,36,38,0.1);
@@ -287,7 +290,7 @@
         .tempo-btn {
             flex: 1; padding: 10px; font-size: 10px; font-weight: 700;
             background: rgba(34, 36, 38, 0.05); border: 1px solid rgba(34, 36, 38, 0.1);
-            cursor: pointer; border-radius: 2px; transition: all 0.2s ease;
+            cursor: pointer; border-radius: 2px; transition: background 0.2s, color 0.2s;
         }
         .tempo-btn.active { background: var(--color-eye-blue); color: var(--white); border-color: var(--color-eye-blue); }
 
@@ -328,11 +331,17 @@
     </div>
 </div>
 
-<div class="header-controls" id="header-controls">
+
+<div class="dock" id="header-controls">
     <div id="playback-toggle" class="playing">
-        <span id="playback-icon" style="font-size: 20px;">▢</span>
+        <svg id="playback-icon" width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="3" width="5" height="16" rx="2.5" fill="white"/>
+            <rect x="13" y="3" width="5" height="16" rx="2.5" fill="white"/>
+        </svg>
     </div>
-    
+
+    <div class="dock-divider"></div>
+
     <div id="settings-trigger">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 a2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2.83 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -341,6 +350,8 @@
         </svg>
     </div>
 </div>
+
+<div id="panel-backdrop"></div>
 
 <div id="control-panel">
     <div class="control-group">
@@ -393,8 +404,8 @@
 
     <div class="panel-footer">
         <p>Presented by: ARPeggioRev2</p>
-        <p>Program assisted by: Gemini</p>
-        <p>こみゃくのもり Version: 1.5.1</p>
+        <p>Program assisted by: Gemini &amp; Claude</p>
+        <p>こみゃくのもり Version: 1.0.0</p>
         <p>
             免責事項 このコンテンツは個人による非公式の二次創作です。利用の際は公式の二次創作<a href="https://www.expo2025.or.jp/news/news-20260330-01/" target="_blank">ガイドライン</a>を遵守してください。
         </p>
@@ -403,15 +414,14 @@
 
 <canvas id="canvas"></canvas>
 
+
 <script>
 /* ── Settings ── */
 const BPM_BASE = 120;
 const STEP_4TH_BASE = (60000 / BPM_BASE); 
 const ECHO_DOTTED_8TH = (STEP_4TH_BASE / 2) * 1.5; 
 
-/* VOLUME LOGIC CONFIGURATION (Updated to start at 70%) */
-const UI_FULL_LUFS = -14.0;
-const INITIAL_UI_PERCENT = 70.0; 
+const INITIAL_UI_PERCENT = 70.0;
 
 const PALETTE = {
     BLUE:       '#0068B7',
@@ -511,7 +521,7 @@ class GuitarArpeggioEngine {
         const freq = 440 * Math.pow(2, (midi - 69) / 12);
         const mainGain = this.ctx.createGain();
         const panner = this.ctx.createStereoPanner();
-        panner.pan.setValueAtTime(pan, now);
+        panner.pan.value = pan;
         const attack = 0.05; 
         const decay = 2.5; 
         
@@ -523,6 +533,7 @@ class GuitarArpeggioEngine {
             g.gain.linearRampToValueAtTime(0.06 / h, now + attack);
             g.gain.exponentialRampToValueAtTime(0.0001, now + decay);
             osc.connect(g).connect(mainGain);
+            osc.onended = () => { g.disconnect(); };
             osc.start(now); osc.stop(now + decay + 0.1);
         });
 
@@ -568,7 +579,7 @@ class SanctuaryEngine {
         this.guitar.gainNode.connect(this.delay); this.guitar.gainNode.connect(this.convolver);
         this.delay.connect(this.masterOut); this.reverbGain.connect(this.masterOut);
         
-        this.noiseBuffer = this.makeNoiseBuffer(10);
+        this.noiseBuffer = this.makeNoiseBuffer(5);
         this.beatCount = 0;
         this.currentIdx5 = 0; this.currentIdx7 = 0;
         this.tickTimeout = null;
@@ -583,7 +594,7 @@ class SanctuaryEngine {
     }
 
     generateIR() {
-        const length = this.ctx.sampleRate * 8.0;
+        const length = this.ctx.sampleRate * 5.0;
         const buffer = this.ctx.createBuffer(2, length, this.ctx.sampleRate);
         for (let c = 0; c < 2; c++) {
             const data = buffer.getChannelData(c);
@@ -608,16 +619,16 @@ class SanctuaryEngine {
         const vibLFO = this.ctx.createOscillator();
         const vibAmt = this.ctx.createGain();
         vibLFO.frequency.value = 0.5;
-        const vibDepth = freq * (0.004 + CHOIR_SETTINGS.instability * 0.00028);
+        const vibDepth = freq * 0.004;
         vibAmt.gain.setValueAtTime(vibDepth, startTime);
         vibLFO.connect(vibAmt);
         vibAmt.connect(osc.frequency);
 
         const formantDefs = [
-            { cf: 850,  bw: 95,  g: 0.65 * CHOIR_SETTINGS.clarity },
-            { cf: 1400, bw: 105, g: 0.42 * CHOIR_SETTINGS.clarity },
-            { cf: 2750, bw: 140, g: 0.22 * CHOIR_SETTINGS.clarity },
-            { cf: 3500, bw: 220, g: 0.10 * CHOIR_SETTINGS.clarity },
+            { cf: 850,  bw: 95,  g: 0.6435 },
+            { cf: 1400, bw: 105, g: 0.4158 },
+            { cf: 2750, bw: 140, g: 0.2178 },
+            { cf: 3500, bw: 220, g: 0.0990 },
         ];
 
         const voiceOut = this.ctx.createGain();
@@ -639,6 +650,8 @@ class SanctuaryEngine {
         });
 
         voiceOut.connect(target);
+        osc.onended = () => { voiceOut.disconnect(); preEmph.disconnect(); };
+        vibLFO.onended = () => { vibAmt.disconnect(); };
         osc.start(startTime);
         osc.stop(startTime + duration + 0.1);
         vibLFO.start(startTime);
@@ -669,6 +682,7 @@ class SanctuaryEngine {
         });
 
         nEnv.connect(target);
+        src.onended = () => { nEnv.disconnect(); };
         src.start(startTime);
         src.stop(startTime + duration + 0.4);
     }
@@ -716,7 +730,7 @@ class SanctuaryEngine {
             const stepInterval = (STEP_4TH_BASE / 2) * audioState.tempoScale;
             this.beatCount++; 
 
-            const isRest = audioState.tempoScale >= 2.0 && Math.random() < 0.5;
+            const isRest = false;
 
             if (!isRest) {
                 if (!audioState.arpeggioMuted) {
@@ -811,8 +825,6 @@ class Observer {
         this.gazeUpdateInterval = 8 + Math.floor(Math.random() * 4); 
         this.gazeUpdateOffset = Math.floor(Math.random() * 8); 
         this.lastUpdateBeat = -1;
-
-        // 個体ごとの基準となる注視方向（個性）を決定
         this.baseAngle = Math.random() * Math.PI * 2;
     }
     linkTone(freq) {
@@ -824,7 +836,6 @@ class Observer {
         this.updateGazeTarget();
     }
     updateGazeTarget() {
-        // 固有の baseAngle を中心に少しだけ揺らぎを加える
         const eyeAngle = this.baseAngle + (Math.random() * 0.6 - 0.3);
         const eyeDist = this.eyeLimit * (0.6 + Math.random() * 0.4); 
         this.targetEyeX = Math.cos(eyeAngle) * eyeDist; 
@@ -916,45 +927,60 @@ function render(now) {
 }
 
 /* ── UI Logic ── */
+
 const elements = {
+    overlay: document.getElementById('overlay'),
     startBtn: document.getElementById('start-btn'),
     controls: document.getElementById('header-controls'),
     playbackToggle: document.getElementById('playback-toggle'),
     playbackIcon: document.getElementById('playback-icon'),
     trigger: document.getElementById('settings-trigger'),
     panel: document.getElementById('control-panel'),
+    backdrop: document.getElementById('panel-backdrop'),
     vol: document.getElementById('master-vol'),
     volVal: document.getElementById('vol-val'),
     bgInput: document.getElementById('bg-input'),
     bgCont: document.getElementById('bg-container'),
     resetBg: document.getElementById('reset-bg-btn'),
-    tempoBtns: document.querySelectorAll('.tempo-btn'),
+    tempoBtns: document.querySelectorAll('[data-scale]'),
     muteArpeggio: document.getElementById('mute-arpeggio'),
     muteChoir: document.getElementById('mute-choir')
 };
 
 window.addEventListener('contextmenu', (e) => { e.preventDefault(); }, false);
 
+function openPanel() {
+    elements.panel.classList.add('open');
+    elements.backdrop.classList.add('open');
+    elements.trigger.classList.add('active');
+}
+
+function closePanel() {
+    elements.panel.classList.remove('open');
+    elements.backdrop.classList.remove('open');
+    elements.trigger.classList.remove('active');
+}
+
 async function togglePlayback() {
     if (isMasterPlaying) {
         isMasterPlaying = false;
         engine.stopAuto();
-        elements.playbackIcon.innerText = "▷";
+        elements.playbackIcon.innerHTML = `<path d="M5 3.5C5 2.7 5.85 2.2 6.54 2.62l12 7a1 1 0 0 1 0 1.76l-12 7C5.85 18.8 5 18.3 5 17.5V3.5Z" fill="white"/>`;
         elements.playbackToggle.classList.remove('playing');
-        elements.playbackToggle.style.background = 'var(--color-no)'; 
+        elements.playbackToggle.style.background = 'var(--color-no)';
     } else {
         await engine.ctx.resume();
         isMasterPlaying = true;
         engine.startAuto();
-        elements.playbackIcon.innerText = "▢";
+        elements.playbackIcon.innerHTML = `<rect x="4" y="3" width="5" height="16" rx="2.5" fill="white"/><rect x="13" y="3" width="5" height="16" rx="2.5" fill="white"/>`;
         elements.playbackToggle.classList.add('playing');
-        elements.playbackToggle.style.background = 'var(--emerald)'; 
+        elements.playbackToggle.style.background = 'var(--emerald)';
     }
 }
 
 elements.startBtn.onclick = (e) => {
     e.stopPropagation();
-    document.getElementById('overlay').classList.add('fade-out');
+    elements.overlay.classList.add('fade-out');
     elements.controls.classList.add('visible');
     isMasterPlaying = true;
     engine.ctx.resume().then(() => {
@@ -992,13 +1018,12 @@ elements.muteChoir.onclick = (e) => {
 
 elements.trigger.onclick = (e) => {
     e.stopPropagation();
-    const open = elements.panel.classList.toggle('open');
-    elements.trigger.classList.toggle('active', open);
+    elements.panel.classList.contains('open') ? closePanel() : openPanel();
 };
 
-elements.panel.onclick = (e) => {
-    e.stopPropagation();
-};
+elements.panel.onclick = (e) => { e.stopPropagation(); };
+
+elements.backdrop.onclick = () => { closePanel(); };
 
 elements.resetBg.onclick = (e) => { 
     e.stopPropagation();
@@ -1006,7 +1031,6 @@ elements.resetBg.onclick = (e) => {
     elements.bgInput.value = ''; 
 };
 
-/* VOLUME CONTROL LOGIC */
 elements.vol.oninput = (e) => {
     const percent = parseFloat(e.target.value);
     elements.volVal.textContent = percent.toFixed(1) + '%';
@@ -1024,19 +1048,18 @@ elements.bgInput.onchange = (e) => {
 };
 
 window.addEventListener('touchstart', (e) => {
-    if (document.getElementById('overlay').offsetParent !== null && !document.getElementById('overlay').classList.contains('fade-out')) return;
+    if (elements.overlay.offsetParent !== null && !elements.overlay.classList.contains('fade-out')) return;
     
     if (elements.panel.classList.contains('open')) {
         if (!elements.panel.contains(e.target) && !elements.controls.contains(e.target)) {
-            elements.panel.classList.remove('open');
-            elements.trigger.classList.remove('active');
+            closePanel();
             e.preventDefault();
-            return; 
+            return;
         }
         return;
     }
 
-    if (elements.controls.contains(e.target) || e.target.closest('.header-controls') || e.target.closest('#control-panel')) {
+    if (elements.controls.contains(e.target) || e.target.closest('.dock') || e.target.closest('#control-panel') || e.target.closest('#panel-backdrop')) {
         return;
     }
 
@@ -1046,22 +1069,21 @@ window.addEventListener('touchstart', (e) => {
     const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
     const touchFreq = 440 * Math.pow(2, (midi - 69) / 12);
     const r = BASE_BODY_R * Math.pow(440 / touchFreq, 0.45);
-    
+
     if (isColliding(t.clientX, t.clientY, r)) return;
 
-    const obs = new Observer(t.clientX, t.clientY, 400, 4000); 
+    const obs = new Observer(t.clientX, t.clientY, 400, 4000);
     obs.linkTone(touchFreq);
     observers.push(obs);
-    
+
     const now = engine.ctx.currentTime;
-    const duration = 5.0; 
     const panner = engine.ctx.createStereoPanner();
     panner.pan.value = (t.clientX / canvas.width - 0.5) * 2;
     const localGain = engine.ctx.createGain();
     localGain.gain.value = 1.2;
     localGain.connect(panner).connect(engine.mixerAmb);
-    engine.createChoirVoice(touchFreq, now, duration, localGain);
-    engine.createBreath(now, duration, localGain);
+    engine.createChoirVoice(touchFreq, now, 5.0, localGain);
+    engine.createBreath(now, 5.0, localGain);
 }, { passive: false });
 
 window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
