@@ -1086,6 +1086,32 @@ window.addEventListener('touchstart', (e) => {
     engine.createBreath(now, 5.0, localGain);
 }, { passive: false });
 
+window.addEventListener('click', (e) => {
+    if (elements.overlay.offsetParent !== null && !elements.overlay.classList.contains('fade-out')) return;
+    if (elements.panel.classList.contains('open')) return;
+    if (e.target.closest('.dock') || e.target.closest('#control-panel') || e.target.closest('#panel-backdrop')) return;
+    if (!isMasterPlaying) return;
+
+    const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
+    const touchFreq = 440 * Math.pow(2, (midi - 69) / 12);
+    const r = BASE_BODY_R * Math.pow(440 / touchFreq, 0.45);
+
+    if (isColliding(e.clientX, e.clientY, r)) return;
+
+    const obs = new Observer(e.clientX, e.clientY, 400, 4000);
+    obs.linkTone(touchFreq);
+    observers.push(obs);
+
+    const now = engine.ctx.currentTime;
+    const panner = engine.ctx.createStereoPanner();
+    panner.pan.value = (e.clientX / canvas.width - 0.5) * 2;
+    const localGain = engine.ctx.createGain();
+    localGain.gain.value = 1.2;
+    localGain.connect(panner).connect(engine.mixerAmb);
+    engine.createChoirVoice(touchFreq, now, 5.0, localGain);
+    engine.createBreath(now, 5.0, localGain);
+});
+
 window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
