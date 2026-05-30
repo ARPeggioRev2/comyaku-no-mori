@@ -69,9 +69,11 @@
             overflow: hidden;
             background: var(--white);
             touch-action: none;
-            font-family: "Helvetica", "Arial", "Yu Gothic Medium", "YuGothic", "Hiragino Kaku Gothic ProN", sans-serif;
-            font-weight: 500;
-            color: var(--ink);
+            font-family: "Helvetica Neue", "Helvetica", "Open Sans",
+                         "Zen Kaku Gothic New", "Yu Gothic", "YuGothic",
+                         "Hiragino Kaku Gothic ProN", sans-serif;
+            font-weight: 400;
+            color: var(--dark-gray);
         }
 
         #bg-container {
@@ -126,7 +128,7 @@
 
         .title-mark {
             font-size: 11px; letter-spacing: 0.35em;
-            color: var(--dark-gray);
+            color: #222426;
             text-transform: uppercase;
             margin-bottom: 24px;
             font-weight: 700;
@@ -152,8 +154,7 @@
             margin-top: 16px; 
             font-weight: 400; 
             font-style: italic; 
-            color: var(--dark-gray);
-            opacity: 0.4;
+            color: #D2D7DA;
         }
 
         #start-btn {
@@ -258,7 +259,8 @@
         .control-group { display: flex; flex-direction: column; gap: 14px; }
         .control-label {
             font-size: 11px; letter-spacing: 0.15em; font-weight: 700;
-            display: flex; justify-content: space-between; opacity: 0.8;
+            color: #222426;
+            display: flex; justify-content: space-between;
         }
 
         #reset-bg-btn {
@@ -299,8 +301,9 @@
             padding-top: 24px;
             border-top: 1px solid rgba(34, 36, 38, 0.1);
             font-size: 10px;
+            font-weight: 400;
             line-height: 1.6;
-            color: rgba(34, 36, 38, 0.6);
+            color: #828487;
             user-select: text;
         }
         .panel-footer p { margin: 0 0 8px 0; }
@@ -826,6 +829,7 @@ class Observer {
         this.gazeUpdateOffset = Math.floor(Math.random() * 8); 
         this.lastUpdateBeat = -1;
         this.baseAngle = Math.random() * Math.PI * 2;
+        this.squish = Math.random() < 0.3 ? (0.88 + Math.random() * 0.08) : 1.0;
     }
     linkTone(freq) {
         this.bodyR = BASE_BODY_R * Math.pow(440 / freq, 0.45);
@@ -875,6 +879,7 @@ class Observer {
         if (this.alpha <= 0) return;
         ctx.save();
         ctx.translate(this.x, this.y);
+        ctx.scale(1, this.squish);
         ctx.globalAlpha = this.alpha;
         ctx.beginPath(); ctx.arc(0, 0, this.bodyR, 0, Math.PI * 2);
         ctx.fillStyle = this.bodyColor; ctx.fill();
@@ -892,6 +897,126 @@ class Observer {
     }
 }
 
+/* ── NUSHI ── */
+class Nushi {
+    constructor() {
+        this.active = false;
+        this.alpha  = 0;
+        this.birth  = 0;
+        this.life   = 10000;
+        this.attack = 1500;
+        this.img    = new Image();
+        this.ready  = false;
+        this.fPupilX = 0; this.fPupilY = 0;
+        this.fTargetPX = 0; this.fTargetPY = 0;
+        this.bPupilX = 0; this.bPupilY = 0;
+        this.bTargetPX = 0; this.bTargetPY = 0;
+        this.fBaseAngle = Math.random() * Math.PI * 2;
+        this.bBaseAngle = Math.random() * Math.PI * 2;
+        this.gazeInterval = 24 + Math.floor(Math.random() * 8);
+        this.gazeOffset   = Math.floor(Math.random() * 8);
+        this.lastGazeBeat = -1;
+        this._randomizeColors();
+        this._buildImage();
+    }
+    _randomizeColors() {
+        const gc = [PALETTE.GREEN_VIVID, PALETTE.EMERALD, PALETTE.GREEN_SOFT, PALETTE.YELLOW];
+        this.colorFront = gc[Math.floor(Math.random() * gc.length)];
+        this.colorBack  = gc[Math.floor(Math.random() * gc.length)];
+    }
+    _buildImage() {
+        this.ready = false;
+        this.img = new Image();
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="143 150 1023 645">
+<path fill="${this.colorFront}" d="M704.805298,787.843018 C685.990051,788.898743 667.178528,790.026917 648.358398,790.987305 C633.153503,791.763184 617.942688,792.477112 602.726379,792.961426 C586.800659,793.468323 570.866333,793.736877 554.933777,793.986633 C529.829041,794.380249 504.723389,794.822266 479.616730,794.938477 C467.853882,794.992920 456.084229,794.426941 444.324005,793.976624 C429.279846,793.400574 414.234131,792.796753 399.203796,791.945984 C384.902893,791.136475 370.606262,790.166321 356.334320,788.953857 C338.640808,787.450684 320.914215,786.093567 303.312134,783.819885 C281.567383,781.011169 259.890778,777.593018 238.267624,773.946594 C214.391617,769.920105 190.955536,764.175049 169.206970,753.033997 C152.705612,744.580933 143.594452,731.613464 143.937683,712.477112 C144.285095,693.106445 148.184464,674.269470 153.759186,655.994202 C164.280807,621.501953 176.097992,587.404236 187.435516,553.162048 C189.127899,548.050659 191.589371,543.161072 192.929291,537.971130 C200.644455,508.087891 216.647583,481.747620 228.754089,453.751190 C238.369644,431.515106 247.408630,408.851685 259.288727,387.839600 C266.426941,375.214386 273.239014,362.335663 280.605499,349.805603 C291.138977,331.888641 300.912323,313.487122 312.189789,296.055634 C323.995575,277.807556 336.651886,260.041260 349.942474,242.841736 C362.888428,226.088181 378.107910,211.293884 395.059052,198.514984 C410.733063,186.698822 426.366608,174.739746 442.810699,164.064758 C454.294800,156.609650 466.776184,150.559799 481.367188,150.891525 C493.120697,151.158752 503.506775,155.104172 513.346497,160.907089 C535.167542,173.776001 554.485901,189.846954 572.263306,207.801544 C583.254211,218.902054 594.615845,229.708832 604.785522,241.529770 C616.414856,255.047363 627.792847,268.949646 637.705078,283.740265 C657.241333,312.891541 675.992493,342.584351 694.467651,372.425049 C704.369507,388.418304 713.037781,405.176178 722.233887,421.605164 C727.268494,430.599548 732.243103,439.627502 737.607788,449.190796 C738.831726,451.700378 739.561890,453.729767 740.572205,455.608490 C779.141663,527.325012 816.097839,599.842957 847.246033,675.142395 C854.468933,692.603455 860.432983,710.727356 865.200867,729.009277 C868.124573,740.219849 866.886719,752.131653 856.413879,760.428650 C848.765137,766.488342 840.353821,770.950562 830.683533,773.145935 C799.530457,780.218323 767.746704,782.088257 736.084473,784.996155 C725.658875,785.953674 715.231750,786.894531 704.805298,787.843018 Z"/>
+<path fill="${this.colorBack}" d="M705.254395,787.857422 C715.231750,786.894531 725.658875,785.953674 736.084473,784.996155 C767.746704,782.088257 799.530457,780.218323 830.683533,773.145935 C840.353821,770.950562 848.765137,766.488342 856.413879,760.428650 C866.886719,752.131653 868.124573,740.219849 865.200867,729.009277 C860.432983,710.727356 854.468933,692.603455 847.246033,675.142395 C816.097839,599.842957 779.141663,527.325012 740.572205,455.608490 C739.561890,453.729767 738.831726,451.700378 737.901978,449.370941 C757.682983,419.054443 777.271118,388.929474 797.543823,359.272461 C803.535339,350.507355 811.649841,343.220520 818.452881,334.976837 C829.210083,321.941467 842.328979,311.791656 856.503845,302.863007 C873.375793,292.235565 891.400208,285.299225 911.589600,283.860626 C930.388184,282.521210 947.531799,287.043152 962.698792,297.542450 C976.195679,306.885590 986.255493,319.948303 994.870178,333.804382 C1007.539551,354.181976 1020.320862,374.548523 1031.739136,395.632080 C1050.302612,429.909271 1068.297485,464.517761 1085.566528,499.463806 C1096.098389,520.776794 1104.877563,542.959412 1114.343262,564.795105 C1128.049194,596.412231 1139.891846,628.740906 1150.155029,661.617310 C1155.641968,679.193848 1160.740601,696.951538 1164.714478,714.914978 C1166.685547,723.825073 1166.229980,733.400452 1165.944214,742.646240 C1165.636108,752.617798 1158.771606,759.052612 1150.528931,762.508911 C1138.519531,767.544800 1126.009277,771.742676 1113.347168,774.769775 C1099.470093,778.087280 1085.207397,779.868958 1071.058472,781.951050 C1055.876831,784.185120 1040.653809,786.181335 1025.406738,787.911682 C1016.098999,788.968018 1006.718811,789.444641 997.359436,789.975586 C978.251404,791.059570 959.135010,791.996094 940.023071,793.011841 C934.427124,793.309326 928.837769,793.875916 923.239807,793.964600 C897.161804,794.377869 871.082397,794.841064 845.002258,794.931458 C830.586182,794.981445 816.166382,794.377930 801.750732,793.981506 C792.988770,793.740601 784.228699,793.390991 775.472595,792.986633 C762.125793,792.370361 748.778259,791.747437 735.440430,790.966797 C726.744263,790.457886 718.061890,789.698181 709.380920,788.961548 C708.133301,788.855652 706.928284,788.247559 705.254395,787.857422 Z"/>
+</svg>`;
+        this.img.onload = () => { this.ready = true; };
+        this.img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
+    }
+    _getDrawW() {
+        const shortSide = Math.min(canvas.width, canvas.height);
+        const maxByEyes = shortSide / (768 / 1023) * 0.95;
+        return Math.min(canvas.width * 0.98, Math.max(canvas.width * 0.88, maxByEyes));
+    }
+    _updateGazeTargets() {
+        const scale = this._getDrawW() / 1023;
+        const fWhiteR = 103.5 * scale;
+        const fPL = fWhiteR * (30 / 68);
+        let a = this.fBaseAngle + (Math.random() * 0.6 - 0.3);
+        let d = fPL * (0.5 + Math.random() * 0.5);
+        this.fTargetPX = Math.cos(a) * d;
+        this.fTargetPY = Math.sin(a) * d;
+        const bWhiteR = 83.5 * scale;
+        const bPL = bWhiteR * (30 / 68);
+        a = this.bBaseAngle + (Math.random() * 0.6 - 0.3);
+        d = bPL * (0.5 + Math.random() * 0.5);
+        this.bTargetPX = Math.cos(a) * d;
+        this.bTargetPY = Math.sin(a) * d;
+    }
+    spawn() {
+        if (this.active) return false;
+        this._randomizeColors();
+        this._buildImage();
+        this.active = true;
+        this.birth  = performance.now();
+        this.alpha  = 0;
+        this.fPupilX = 0; this.fPupilY = 0;
+        this.bPupilX = 0; this.bPupilY = 0;
+        this._updateGazeTargets();
+        return true;
+    }
+    update(now, beatCount) {
+        if (!this.active) return;
+        const e = now - this.birth;
+        if      (e < this.attack)             this.alpha = e / this.attack;
+        else if (e < this.life - this.attack) this.alpha = 1.0;
+        else if (e < this.life)               this.alpha = (this.life - e) / this.attack;
+        else { this.active = false; this.alpha = 0; return; }
+        if ((beatCount + this.gazeOffset) % this.gazeInterval === 0 && beatCount !== this.lastGazeBeat) {
+            this.lastGazeBeat = beatCount;
+            this._updateGazeTargets();
+        }
+        this.fPupilX += (this.fTargetPX - this.fPupilX) * 0.06;
+        this.fPupilY += (this.fTargetPY - this.fPupilY) * 0.06;
+        this.bPupilX += (this.bTargetPX - this.bPupilX) * 0.06;
+        this.bPupilY += (this.bTargetPY - this.bPupilY) * 0.06;
+    }
+    draw(ctx, canvasEl) {
+        if (!this.active || !this.ready || this.alpha <= 0) return;
+        const drawW = this._getDrawW();
+        const drawH = drawW / (1023 / 645);
+        const scale = drawW / 1023;
+        const drawX = (canvasEl.width - drawW) / 2;
+        const drawY = canvasEl.height - drawH * 0.78;
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.drawImage(this.img, drawX, drawY, drawW, drawH);
+        const eyeAlpha = Math.max(0, (this.alpha - 0.1) / 0.9);
+        if (eyeAlpha > 0) {
+            ctx.globalAlpha = eyeAlpha * this.alpha;
+            // 前キャラクター目：SVG絶対座標(366.5,445) → viewBox相対(223.5, 295)
+            const fWhiteR = 103.5 * scale;
+            const fPupilR = fWhiteR * (30 / 68);
+            const fEyeX = drawX + 223.5 * scale;
+            const fEyeY = drawY + 295 * scale;
+            ctx.beginPath(); ctx.arc(fEyeX, fEyeY, fWhiteR, 0, Math.PI * 2);
+            ctx.fillStyle = PALETTE.WHITE; ctx.fill();
+            ctx.beginPath(); ctx.arc(fEyeX + this.fPupilX, fEyeY + this.fPupilY, fPupilR, 0, Math.PI * 2);
+            ctx.fillStyle = PALETTE.BLUE; ctx.fill();
+            // 後キャラクター目：SVG絶対座標(947.5,485.5) → viewBox相対(804.5, 335.5)
+            const bWhiteR = 83.5 * scale;
+            const bPupilR = bWhiteR * (30 / 68);
+            const bEyeX = drawX + 804.5 * scale;
+            const bEyeY = drawY + 335.5 * scale;
+            ctx.beginPath(); ctx.arc(bEyeX, bEyeY, bWhiteR, 0, Math.PI * 2);
+            ctx.fillStyle = PALETTE.WHITE; ctx.fill();
+            ctx.beginPath(); ctx.arc(bEyeX + this.bPupilX, bEyeY + this.bPupilY, bPupilR, 0, Math.PI * 2);
+            ctx.fillStyle = PALETTE.BLUE; ctx.fill();
+        }
+        ctx.restore();
+    }
+}
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 let observers = [], particles = [];
 const engine = new SanctuaryEngine();
@@ -915,6 +1040,8 @@ function createObserverAtRandom(freq) {
 function render(now) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const beat = engine.beatCount;
+    nushi.update(now, beat);
+    nushi.draw(ctx, canvas);
     for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i]; p.update(now);
         if (p.dead) { particles.splice(i, 1); } else { p.draw(ctx); }
@@ -927,6 +1054,38 @@ function render(now) {
 }
 
 /* ── UI Logic ── */
+
+const nushi = new Nushi();
+
+function spawnNushiSound() {
+    const bassScale = [28, 35, 40, 44, 47];
+    const count = 3 + Math.floor(Math.random() * 2);
+    bassScale.slice(0, count).forEach((midi, i) => {
+        setTimeout(() => {
+            if (!isMasterPlaying) return;
+            const freq = 440 * Math.pow(2, (midi - 69) / 12);
+            const dur = 5.0 + Math.random() * 1.5;
+            const panner = engine.ctx.createStereoPanner();
+            panner.pan.value = (Math.random() - 0.5) * 0.3;
+            const localGain = engine.ctx.createGain();
+            localGain.gain.value = 2.2;
+            localGain.connect(panner).connect(engine.mixerAmb);
+            engine.createChoirVoice(freq, engine.ctx.currentTime, dur, localGain);
+            engine.createBreath(engine.ctx.currentTime, dur, localGain);
+        }, i * 1200);
+    });
+}
+
+let nushiTimerId = null;
+function resetNushiTimer() {
+    if (nushiTimerId) clearInterval(nushiTimerId);
+    const intervalMs = 8000 * audioState.tempoScale;
+    nushiTimerId = setInterval(() => {
+        if (!isMasterPlaying || nushi.active) return;
+        if (Math.random() < 0.10) { nushi.spawn(); spawnNushiSound(); }
+    }, intervalMs);
+}
+resetNushiTimer();
 
 const elements = {
     overlay: document.getElementById('overlay'),
@@ -1001,6 +1160,7 @@ elements.tempoBtns.forEach(btn => {
         const scale = parseFloat(btn.dataset.scale);
         audioState.tempoScale = scale;
         elements.tempoBtns.forEach(b => b.classList.toggle('active', b === btn));
+        resetNushiTimer();
     };
 });
 
@@ -1040,11 +1200,22 @@ elements.vol.oninput = (e) => {
 
 elements.bgInput.onchange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = (ev) => elements.bgCont.style.backgroundImage = `url(${ev.target.result})`;
-        reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+            const oc = document.createElement('canvas');
+            oc.width = img.naturalWidth;
+            oc.height = img.naturalHeight;
+            const octx = oc.getContext('2d');
+            octx.drawImage(img, 0, 0);
+            const sdrUrl = oc.toDataURL('image/jpeg', 0.92);
+            elements.bgCont.style.backgroundImage = `url(${sdrUrl})`;
+        };
+        img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
 };
 
 window.addEventListener('touchstart', (e) => {
@@ -1113,6 +1284,9 @@ window.addEventListener('click', (e) => {
 });
 
 window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+window.addEventListener('orientationchange', () => {
+    setTimeout(() => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }, 150);
+});
 canvas.width = window.innerWidth; canvas.height = window.innerHeight;
 
 elements.volVal.textContent = INITIAL_UI_PERCENT.toFixed(1) + '%';
