@@ -91,6 +91,19 @@
             width: 100%; height: 100%;
             z-index: 10;
         }
+        #opening-particles {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.33;
+            filter: blur(10px);
+        }
+        .open-particle {
+            position: absolute;
+            border-radius: 50%;
+        }
+
         #overlay {
             position: fixed; inset: 0; z-index: 200;
             display: flex; flex-direction: column;
@@ -100,19 +113,6 @@
             overflow: hidden;
         }
         #overlay.fade-out { opacity: 0; pointer-events: none; }
-
-        .bg-decoration {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(12px);
-            opacity: 0.25;
-            z-index: -1;
-            pointer-events: none;
-        }
-        .deco-1 { width: 180px; height: 180px; background: var(--color-co-myaku); top: 15%; left: 10%; }
-        .deco-2 { width: 120px; height: 120px; background: var(--color-no); bottom: 25%; right: 15%; }
-        .deco-3 { width: 80px; height: 80px; background: var(--color-mori); top: 20%; right: 20%; }
-        .deco-4 { width: 60px; height: 60px; background: var(--color-eye-blue); bottom: 15%; left: 25%; opacity: 0.15; }
 
         .overlay-inner {
             position: relative;
@@ -319,10 +319,7 @@
 <div id="bg-container"></div>
 
 <div id="overlay">
-    <div class="bg-decoration deco-1"></div>
-    <div class="bg-decoration deco-2"></div>
-    <div class="bg-decoration deco-3"></div>
-    <div class="bg-decoration deco-4"></div>
+    <div id="opening-particles"></div>
 
     <div class="overlay-inner">
         <div class="title-mark">Co-MYAKU FAN ART</div>
@@ -409,9 +406,7 @@
         <p>Presented by: ARPeggioRev2</p>
         <p>Program assisted by: Gemini &amp; Claude</p>
         <p>こみゃくのもり Version: 1.0.0</p>
-        <p>
-            免責事項 このコンテンツは個人による非公式の二次創作です。利用の際は公式の二次創作<a href="https://www.expo2025.or.jp/news/news-20260330-01/" target="_blank">ガイドライン</a>を遵守してください。
-        </p>
+        <p>本作品は <a href="https://www.expo2025.or.jp/news/news-20260330-01/" target="_blank">二次創作ガイドライン</a>に基づき個人制作されたファンアートです。<br>運営団体および公式とは一切関係がありません。</p>
     </div>
 </div>
 
@@ -421,8 +416,9 @@
 <script>
 /* ── Settings ── */
 const BPM_BASE = 120;
-const STEP_4TH_BASE = (60000 / BPM_BASE); 
-const ECHO_DOTTED_8TH = (STEP_4TH_BASE / 2) * 1.5; 
+const STEP_4TH_BASE = (60000 / BPM_BASE);
+const ECHO_DOTTED_8TH = (STEP_4TH_BASE / 2) * 1.5;
+const DPR = window.devicePixelRatio || 1;
 
 const INITIAL_UI_PERCENT = 70.0;
 
@@ -558,11 +554,38 @@ class SanctuaryEngine {
         const ambHPF = this.ctx.createBiquadFilter();
         ambHPF.type = 'highpass'; ambHPF.frequency.value = 250;
         
-        this.delay = this.ctx.createDelay(2.0);
-        this.delay.delayTime.value = ECHO_DOTTED_8TH / 1000; 
+        // テープエコー
+        this.delay = this.ctx.createDelay(3.0);
+        this.delay.delayTime.value = ECHO_DOTTED_8TH / 1000;
+
+        // Wow LFO（1.7Hz・±0.3ms）
+        const wowLFO = this.ctx.createOscillator();
+        wowLFO.type = 'sine'; wowLFO.frequency.value = 1.7;
+        const wowDepth = this.ctx.createGain();
+        wowDepth.gain.value = 0.0003;
+        wowLFO.connect(wowDepth).connect(this.delay.delayTime);
+        wowLFO.start();
+
+        // Flutter LFO（4.6Hz・±0.06ms）
+        const flutterLFO = this.ctx.createOscillator();
+        flutterLFO.type = 'sine'; flutterLFO.frequency.value = 4.6;
+        const flutterDepth = this.ctx.createGain();
+        flutterDepth.gain.value = 0.00006;
+        flutterLFO.connect(flutterDepth).connect(this.delay.delayTime);
+        flutterLFO.start();
+
+        // HFロールオフ（フィードバックループ内 ─ ループ毎に累積）
+        this.tapeLP = this.ctx.createBiquadFilter();
+        this.tapeLP.type = 'lowpass';
+        this.tapeLP.frequency.value = 5000;
+
         this.delayFeedback = this.ctx.createGain();
-        this.delayFeedback.gain.value = 0.55; 
-        this.delay.connect(this.delayFeedback).connect(this.delay);
+        this.delayFeedback.gain.value = 0.55;
+
+        // delay → tapeLP → feedback → delay（LP込みフィードバックループ）
+        this.delay.connect(this.tapeLP);
+        this.tapeLP.connect(this.delayFeedback);
+        this.delayFeedback.connect(this.delay);
         
         this.convolver = this.ctx.createConvolver();
         this.reverbGain = this.ctx.createGain();
@@ -580,7 +603,7 @@ class SanctuaryEngine {
         this.mixerAmb.connect(ambHPF).connect(this.masterOut);
         ambHPF.connect(this.delay); ambHPF.connect(this.convolver);
         this.guitar.gainNode.connect(this.delay); this.guitar.gainNode.connect(this.convolver);
-        this.delay.connect(this.masterOut); this.reverbGain.connect(this.masterOut);
+        this.tapeLP.connect(this.masterOut); this.reverbGain.connect(this.masterOut);
         
         this.noiseBuffer = this.makeNoiseBuffer(5);
         this.beatCount = 0;
@@ -721,7 +744,7 @@ class SanctuaryEngine {
                 if (!isMasterPlaying || audioState.choirMuted) return;
                 const freq = 440 * Math.pow(2, (midi - 69) / 12);
                 const obs = createObserverAtRandom(freq);
-                if (obs) this.spawnOrganicSound(freq, (obs.x / canvas.width - 0.5) * 2, 1.0);
+                if (obs) this.spawnOrganicSound(freq, (obs.x / (canvas.width / DPR) - 0.5) * 2, 1.0);
             }, delayTime);
         });
     }
@@ -741,15 +764,15 @@ class SanctuaryEngine {
                         this.currentIdx5 = (this.currentIdx5 + 1) % 5;
                         const freq5 = this.guitar.playNote(this.guitar.notes5[this.currentIdx5], -0.6);
                         if (freq5) {
-                            const x = (0.05 + (this.currentIdx5 / 4) * 0.4) * canvas.width;
-                            particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*canvas.height, freq5, GREEN_SET[this.currentIdx5 % 2]));
+                            const x = (0.05 + (this.currentIdx5 / 4) * 0.4) * (canvas.width / DPR);
+                            particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*(canvas.height/DPR), freq5, GREEN_SET[this.currentIdx5 % 2]));
                         }
                     } else {
                         this.currentIdx7 = (this.currentIdx7 + 1) % 7;
                         const freq7 = this.guitar.playNote(this.guitar.notes7[this.currentIdx7], 0.6);
                         if (freq7) {
-                            const x = (0.55 + (this.currentIdx7 / 6) * 0.4) * canvas.width;
-                            particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*canvas.height, freq7, GREEN_SET[2 + (this.currentIdx7 % 2)]));
+                            const x = (0.55 + (this.currentIdx7 / 6) * 0.4) * (canvas.width / DPR);
+                            particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*(canvas.height/DPR), freq7, GREEN_SET[2 + (this.currentIdx7 % 2)]));
                         }
                     }
                 }
@@ -760,6 +783,8 @@ class SanctuaryEngine {
                 if (quarterCount % 16 === 0) this.guitar.evolve();
                 if (quarterCount % 8 === 0 && !audioState.arpeggioMuted) {
                     this.birds.playChirp(this.ctx.currentTime, 1);
+                    const W = canvas.width / DPR, H = canvas.height / DPR;
+                    particles.push(new BirdParticle(W * (0.1 + Math.random() * 0.8), H * (0.1 + Math.random() * 0.6)));
                 }
                 if (quarterCount % 4 === 0 && !audioState.choirMuted) { 
                     const dice = Math.random();
@@ -771,7 +796,7 @@ class SanctuaryEngine {
                         const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
                         const freq = 440 * Math.pow(2, (midi - 69) / 12);
                         const obs = createObserverAtRandom(freq);
-                        if (obs) this.spawnOrganicSound(freq, (obs.x / canvas.width - 0.5) * 2, 1.0);
+                        if (obs) this.spawnOrganicSound(freq, (obs.x / (canvas.width / DPR) - 0.5) * 2, 1.0);
                     }
                 }
             }
@@ -794,7 +819,7 @@ class SanctuaryEngine {
 class ArpeggioParticle {
     constructor(x, y, freq, color) {
         this.x = x; this.y = y; this.color = color;
-        this.initialR = (4 + (440 / freq) * 3); 
+        this.initialR = Math.min(4 + (440 / freq) * 3, 16);
         this.birth = performance.now(); 
         this.decayTime = 2000; 
         this.dead = false;
@@ -810,6 +835,29 @@ class ArpeggioParticle {
         ctx.save(); ctx.globalAlpha = this.alpha;
         ctx.beginPath(); ctx.arc(this.x, this.y, this.initialR, 0, Math.PI * 2);
         ctx.fillStyle = this.color; ctx.fill(); ctx.restore();
+    }
+}
+
+class BirdParticle {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.r = 2 + Math.random() * 2.5;
+        this.birth = performance.now();
+        this.decayTime = 900;
+        this.dead = false;
+        this.alpha = 0.85;
+        this.vy = -(0.4 + Math.random() * 0.6);
+    }
+    update(now) {
+        const progress = (now - this.birth) / this.decayTime;
+        if (progress >= 1.0) { this.dead = true; this.alpha = 0; }
+        else { this.alpha = 0.85 * (1.0 - progress); }
+    }
+    draw(ctx) {
+        if (this.alpha <= 0) return;
+        ctx.save(); ctx.globalAlpha = this.alpha;
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+        ctx.fillStyle = PALETTE.BLUE; ctx.fill(); ctx.restore();
     }
 }
 
@@ -927,32 +975,35 @@ class Nushi {
     _buildImage() {
         this.ready = false;
         this.img = new Image();
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="143 150 1023 645">
-<path fill="${this.colorFront}" d="M704.805298,787.843018 C685.990051,788.898743 667.178528,790.026917 648.358398,790.987305 C633.153503,791.763184 617.942688,792.477112 602.726379,792.961426 C586.800659,793.468323 570.866333,793.736877 554.933777,793.986633 C529.829041,794.380249 504.723389,794.822266 479.616730,794.938477 C467.853882,794.992920 456.084229,794.426941 444.324005,793.976624 C429.279846,793.400574 414.234131,792.796753 399.203796,791.945984 C384.902893,791.136475 370.606262,790.166321 356.334320,788.953857 C338.640808,787.450684 320.914215,786.093567 303.312134,783.819885 C281.567383,781.011169 259.890778,777.593018 238.267624,773.946594 C214.391617,769.920105 190.955536,764.175049 169.206970,753.033997 C152.705612,744.580933 143.594452,731.613464 143.937683,712.477112 C144.285095,693.106445 148.184464,674.269470 153.759186,655.994202 C164.280807,621.501953 176.097992,587.404236 187.435516,553.162048 C189.127899,548.050659 191.589371,543.161072 192.929291,537.971130 C200.644455,508.087891 216.647583,481.747620 228.754089,453.751190 C238.369644,431.515106 247.408630,408.851685 259.288727,387.839600 C266.426941,375.214386 273.239014,362.335663 280.605499,349.805603 C291.138977,331.888641 300.912323,313.487122 312.189789,296.055634 C323.995575,277.807556 336.651886,260.041260 349.942474,242.841736 C362.888428,226.088181 378.107910,211.293884 395.059052,198.514984 C410.733063,186.698822 426.366608,174.739746 442.810699,164.064758 C454.294800,156.609650 466.776184,150.559799 481.367188,150.891525 C493.120697,151.158752 503.506775,155.104172 513.346497,160.907089 C535.167542,173.776001 554.485901,189.846954 572.263306,207.801544 C583.254211,218.902054 594.615845,229.708832 604.785522,241.529770 C616.414856,255.047363 627.792847,268.949646 637.705078,283.740265 C657.241333,312.891541 675.992493,342.584351 694.467651,372.425049 C704.369507,388.418304 713.037781,405.176178 722.233887,421.605164 C727.268494,430.599548 732.243103,439.627502 737.607788,449.190796 C738.831726,451.700378 739.561890,453.729767 740.572205,455.608490 C779.141663,527.325012 816.097839,599.842957 847.246033,675.142395 C854.468933,692.603455 860.432983,710.727356 865.200867,729.009277 C868.124573,740.219849 866.886719,752.131653 856.413879,760.428650 C848.765137,766.488342 840.353821,770.950562 830.683533,773.145935 C799.530457,780.218323 767.746704,782.088257 736.084473,784.996155 C725.658875,785.953674 715.231750,786.894531 704.805298,787.843018 Z"/>
-<path fill="${this.colorBack}" d="M705.254395,787.857422 C715.231750,786.894531 725.658875,785.953674 736.084473,784.996155 C767.746704,782.088257 799.530457,780.218323 830.683533,773.145935 C840.353821,770.950562 848.765137,766.488342 856.413879,760.428650 C866.886719,752.131653 868.124573,740.219849 865.200867,729.009277 C860.432983,710.727356 854.468933,692.603455 847.246033,675.142395 C816.097839,599.842957 779.141663,527.325012 740.572205,455.608490 C739.561890,453.729767 738.831726,451.700378 737.901978,449.370941 C757.682983,419.054443 777.271118,388.929474 797.543823,359.272461 C803.535339,350.507355 811.649841,343.220520 818.452881,334.976837 C829.210083,321.941467 842.328979,311.791656 856.503845,302.863007 C873.375793,292.235565 891.400208,285.299225 911.589600,283.860626 C930.388184,282.521210 947.531799,287.043152 962.698792,297.542450 C976.195679,306.885590 986.255493,319.948303 994.870178,333.804382 C1007.539551,354.181976 1020.320862,374.548523 1031.739136,395.632080 C1050.302612,429.909271 1068.297485,464.517761 1085.566528,499.463806 C1096.098389,520.776794 1104.877563,542.959412 1114.343262,564.795105 C1128.049194,596.412231 1139.891846,628.740906 1150.155029,661.617310 C1155.641968,679.193848 1160.740601,696.951538 1164.714478,714.914978 C1166.685547,723.825073 1166.229980,733.400452 1165.944214,742.646240 C1165.636108,752.617798 1158.771606,759.052612 1150.528931,762.508911 C1138.519531,767.544800 1126.009277,771.742676 1113.347168,774.769775 C1099.470093,778.087280 1085.207397,779.868958 1071.058472,781.951050 C1055.876831,784.185120 1040.653809,786.181335 1025.406738,787.911682 C1016.098999,788.968018 1006.718811,789.444641 997.359436,789.975586 C978.251404,791.059570 959.135010,791.996094 940.023071,793.011841 C934.427124,793.309326 928.837769,793.875916 923.239807,793.964600 C897.161804,794.377869 871.082397,794.841064 845.002258,794.931458 C830.586182,794.981445 816.166382,794.377930 801.750732,793.981506 C792.988770,793.740601 784.228699,793.390991 775.472595,792.986633 C762.125793,792.370361 748.778259,791.747437 735.440430,790.966797 C726.744263,790.457886 718.061890,789.698181 709.380920,788.961548 C708.133301,788.855652 706.928284,788.247559 705.254395,787.857422 Z"/>
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 899 899">
+<path fill="${this.colorFront}" d="M418.9,674.9 C400.2,688.3 372.0,701.5 350.0,708.2 C334.7,712.9 312.7,713.2 296.7,712.4 C273.7,711.3 242.8,708.2 220.5,702.0 C201.6,696.8 176.8,686.5 161.2,674.6 C150.8,666.8 140.3,651.1 137.1,638.5 C130.7,612.5 142.6,573.3 130.2,549.6 C108.3,507.4 46.0,472.5 27.8,428.6 C20.0,409.6 40.4,380.7 54.3,365.7 C99.9,316.5 169.9,260.0 222.5,218.3 C254.0,193.2 299.4,163.9 334.2,143.5 C349.1,134.8 370.4,123.6 387.6,121.8 C449.5,115.2 532.8,113.6 595.1,115.9 C603.9,116.3 615.3,123.6 620.7,130.6 C630.1,142.7 640.5,161.6 642.2,176.8 C647.1,222.6 630.2,285.9 642.2,330.4 C651.2,363.7 690.7,394.8 708.8,424.3 C725.1,450.8 746.6,486.9 756.5,516.4 C759.5,525.3 756.8,540.5 750.1,547.1 C730.3,566.1 698.4,585.7 673.2,596.6 C645.1,608.7 604.7,617.0 574.8,623.1 C558.1,626.5 535.3,629.4 518.4,628.4 C507.1,627.7 493.5,617.5 482.2,617.6 C475.1,617.6 466.6,624.0 461.4,628.8 C447.4,641.4 434.2,664.0 418.9,674.9 Z"/>
+<path fill="${this.colorFront}" d="M646.8,732.3 C648.2,735.8 650.5,742.0 649.2,745.5 C645.5,755.9 640.2,776.5 629.6,779.8 C597.3,789.9 542.1,781.8 509.1,789.4 C495.2,792.6 479.5,811.8 466.3,817.3 C438.2,829.0 393.0,846.6 362.8,850.3 C351.1,851.8 332.6,842.6 323.7,834.8 C318.3,830.2 316.5,817.5 316.8,810.4 C316.9,805.5 321.0,797.7 324.9,794.7 C340.7,783.0 370.0,771.3 385.5,759.2 C394.2,752.5 401.9,735.7 410.2,728.6 C417.3,722.5 430.4,714.3 439.6,712.8 C444.6,712.1 452.2,717.5 455.1,721.6 C461.9,731.3 465.8,750.6 472.7,760.2 C474.2,762.2 480.6,760.0 481.2,757.6 C484.2,744.6 474.9,719.4 484.3,709.8 C491.6,702.4 512.1,711.4 521.0,716.9 C533.8,724.8 545.9,746.9 558.3,755.3 C561.5,757.5 569.4,754.3 571.5,751.0 C580.2,737.3 581.9,707.9 594.8,698.1 C603.4,691.5 623.8,698.5 632.8,704.5 C640.1,709.3 643.5,724.2 646.8,732.3 Z"/>
+<path fill="${this.colorFront}" d="M172.0,861.7 C160.2,861.2 140.9,862.2 129.9,857.8 C119.5,853.7 102.5,843.1 99.2,832.5 C96.7,824.4 111.6,814.1 113.9,805.9 C115.0,801.9 107.2,793.8 110.6,791.4 C117.5,786.6 132.6,790.6 140.4,787.3 C145.2,785.2 153.5,778.6 152.9,773.3 C151.4,759.0 136.2,739.8 133.7,725.6 C132.9,720.4 137.6,711.6 141.9,708.7 C147.4,705.1 159.5,701.5 165.0,705.1 C180.2,715.1 195.5,740.9 209.3,752.8 C216.6,759.2 233.8,761.7 239.6,769.5 C248.2,781.0 255.3,803.3 257.4,817.4 C258.3,823.1 253.5,831.9 249.9,836.3 C244.6,842.8 234.0,851.1 226.5,854.9 C220.1,858.2 208.6,859.9 201.5,860.8 C193.3,861.8 180.3,862.0 172.0,861.7 Z"/>
+<path fill="${this.colorFront}" d="M706.8,245.5 C708.1,238.2 717.4,228.1 716.6,220.7 C715.4,208.8 702.3,193.0 700.3,181.2 C699.5,176.3 703.2,167.7 707.3,165.1 C719.4,157.6 740.6,148.4 754.7,147.0 C760.0,146.4 767.9,153.8 769.9,158.8 C773.1,167.0 772.4,181.5 771.6,190.3 C769.8,211.8 756.4,245.5 760.6,266.7 C765.2,289.8 792.6,318.4 801.4,340.2 C803.1,344.4 800.2,353.0 796.5,355.5 C790.9,359.2 779.4,360.6 772.9,359.1 C762.9,356.9 748.5,348.5 739.8,342.9 C735.9,340.4 730.2,334.9 728.5,330.6 C721.4,312.4 713.9,282.6 709.1,263.7 C707.8,258.7 706.0,250.6 706.8,245.5 Z"/>
+<path fill="${this.colorFront}" d="M83.7,545.3 C88.3,549.5 93.3,558.7 94.7,564.8 C98.1,579.9 101.4,604.4 100.8,619.9 C100.2,633.5 87.7,654.0 90.3,667.3 C93.8,684.6 116.2,705.3 121.2,722.2 C123.3,729.1 119.0,741.7 114.0,746.9 C110.2,750.7 99.7,751.3 95.0,748.9 C89.9,746.3 85.0,737.2 84.3,731.5 C83.4,725.2 92.0,715.5 89.6,709.6 C83.6,694.5 60.0,677.9 56.6,662.0 C53.5,647.8 70.3,625.8 68.5,611.4 C65.8,590.2 44.4,561.2 41.0,540.0 C40.2,535.1 50.0,528.1 55.0,528.8 C64.2,529.9 76.8,539.1 83.7,545.3 Z"/>
+<path fill="${this.colorFront}" d="M147.2,200.4 C161.9,180.5 193.5,156.7 213.8,142.7 C219.7,138.6 231.6,136.0 238.7,137.0 C243.1,137.6 250.1,143.2 250.4,147.7 C251.0,156.8 247.1,171.8 241.6,179.1 C228.1,197.0 201.1,220.0 184.4,234.9 C179.7,239.1 171.7,246.5 165.4,246.8 C158.8,247.1 146.4,243.1 144.0,237.0 C140.3,227.4 141.1,208.6 147.2,200.4 Z"/>
+<path fill="${this.colorFront}" d="M22.1,301.1 C37.8,287.4 62.8,265.8 80.8,255.4 C89.0,250.6 104.5,246.3 113.8,247.9 C120.0,248.9 128.2,257.5 129.6,263.6 C130.8,269.0 126.1,278.5 121.7,281.9 C94.3,303.3 49.3,334.8 18.4,350.6 C14.3,352.7 5.8,346.0 4.7,341.5 C3.1,334.5 7.8,323.2 10.6,316.7 C12.8,311.7 18.1,304.7 22.1,301.1 Z"/>
+<path fill="${this.colorFront}" d="M861.3,463.4 C854.3,473.8 827.9,464.4 816.5,458.9 C807.7,454.6 803.1,436.7 795.0,431.1 C787.5,425.8 771.6,426.2 763.5,421.7 C759.1,419.4 752.6,412.7 752.6,407.8 C752.7,402.6 758.5,392.6 763.8,392.8 C788.0,393.6 828.9,396.8 848.6,411.0 C860.8,419.9 869.7,450.8 861.3,463.4 Z"/>
+<path fill="${this.colorFront}" d="M876.6,583.6 C874.4,590.5 871.3,602.7 865.4,606.9 C850.0,618.2 822.7,632.2 804.0,636.4 C795.3,638.3 779.8,633.6 773.2,627.4 C769.0,623.5 768.2,610.7 772.5,606.8 C790.5,590.3 823.0,567.2 846.5,560.2 C855.3,557.6 867.8,570.7 875.1,576.3 C876.7,577.6 877.2,581.6 876.6,583.6 Z"/>
+<path fill="${this.colorFront}" d="M423.0,61.0 C447.5,57.5 486.1,51.4 510.8,49.2 C514.3,48.9 520.6,49.7 523.2,52.1 C525.1,53.8 526.4,60.2 524.1,61.2 C502.3,70.2 466.6,80.6 443.5,84.9 C417.6,89.7 373.7,104.5 349.8,93.6 C335.1,86.9 385.2,71.7 399.9,65.1 C405.9,62.4 416.5,61.9 423.0,61.0 Z"/>
+<path fill="${this.colorFront}" d="M729.2,651.2 C709.2,661.5 674.7,670.5 653.0,676.0 C644.3,678.2 629.5,681.6 620.9,678.9 C615.9,677.3 611.4,668.2 611.2,662.9 C611.0,658.7 616.0,652.3 619.8,650.6 C631.1,645.5 650.5,641.6 662.7,639.9 C672.7,638.5 688.8,642.0 698.6,639.7 C708.5,637.4 721.3,625.7 731.3,623.7 C734.5,623.1 740.3,628.2 740.0,631.4 C739.5,637.7 734.8,648.3 729.2,651.2 Z"/>
+<path fill="${this.colorFront}" d="M548.3,702.9 C538.6,700.8 521.8,699.9 513.9,693.9 C509.7,690.8 508.0,678.3 512.3,675.5 C522.2,669.3 542.4,664.9 553.5,668.6 C561.3,671.2 567.1,686.0 567.8,694.2 C568.2,698.1 560.4,701.4 556.8,703.0 C554.6,704.0 550.6,703.3 548.3,702.9 Z"/>
+<path fill="${this.colorFront}" d="M824.8,484.3 C833.5,486.3 857.9,492.2 852.9,499.7 C846.0,509.9 821.7,507.5 809.4,507.0 C805.3,506.9 799.2,501.6 798.0,497.6 C797.1,494.8 800.8,489.7 803.5,488.4 C809.0,485.6 818.9,482.9 824.8,484.3 Z"/>
 </svg>`;
         this.img.onload = () => { this.ready = true; };
         this.img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
     }
     _getDrawW() {
-        const shortSide = Math.min(canvas.width, canvas.height);
-        const maxByEyes = shortSide / (768 / 1023) * 0.95;
-        return Math.min(canvas.width * 0.98, Math.max(canvas.width * 0.88, maxByEyes));
+        return Math.min(canvas.width / DPR, canvas.height / DPR);
     }
     _updateGazeTargets() {
-        const scale = this._getDrawW() / 1023;
-        const fWhiteR = 103.5 * scale;
-        const fPL = fWhiteR * (30 / 68);
-        let a = this.fBaseAngle + (Math.random() * 0.6 - 0.3);
-        let d = fPL * (0.5 + Math.random() * 0.5);
+        const scale = this._getDrawW() / 899;
+        const whiteR = 105.0 * scale;
+        const pL = whiteR * 0.365;
+        const a = this.fBaseAngle + (Math.random() * 0.6 - 0.3);
+        const d = pL * (0.5 + Math.random() * 0.5);
         this.fTargetPX = Math.cos(a) * d;
         this.fTargetPY = Math.sin(a) * d;
-        const bWhiteR = 83.5 * scale;
-        const bPL = bWhiteR * (30 / 68);
-        a = this.bBaseAngle + (Math.random() * 0.6 - 0.3);
-        d = bPL * (0.5 + Math.random() * 0.5);
-        this.bTargetPX = Math.cos(a) * d;
-        this.bTargetPY = Math.sin(a) * d;
     }
     spawn() {
         if (this.active) return false;
@@ -962,7 +1013,6 @@ class Nushi {
         this.birth  = performance.now();
         this.alpha  = 0;
         this.fPupilX = 0; this.fPupilY = 0;
-        this.bPupilX = 0; this.bPupilY = 0;
         this._updateGazeTargets();
         return true;
     }
@@ -979,39 +1029,28 @@ class Nushi {
         }
         this.fPupilX += (this.fTargetPX - this.fPupilX) * 0.06;
         this.fPupilY += (this.fTargetPY - this.fPupilY) * 0.06;
-        this.bPupilX += (this.bTargetPX - this.bPupilX) * 0.06;
-        this.bPupilY += (this.bTargetPY - this.bPupilY) * 0.06;
     }
     draw(ctx, canvasEl) {
         if (!this.active || !this.ready || this.alpha <= 0) return;
-        const drawW = this._getDrawW();
-        const drawH = drawW / (1023 / 645);
-        const scale = drawW / 1023;
-        const drawX = (canvasEl.width - drawW) / 2;
-        const drawY = canvasEl.height - drawH * 0.78;
+        const s = this._getDrawW();
+        const W = canvasEl.width / DPR;
+        const H = canvasEl.height / DPR;
+        const drawX = (W - s) / 2;
+        const drawY = (H - s) / 2;
+        const scale  = s / 899;
+        const whiteR = 105.0 * scale;
+        const pupilR = whiteR * 0.635;
+        const eyeX   = drawX + 400 * scale;
+        const eyeY   = drawY + 420 * scale;
         ctx.save();
         ctx.globalAlpha = this.alpha;
-        ctx.drawImage(this.img, drawX, drawY, drawW, drawH);
+        ctx.drawImage(this.img, drawX, drawY, s, s);
         const eyeAlpha = Math.max(0, (this.alpha - 0.1) / 0.9);
         if (eyeAlpha > 0) {
             ctx.globalAlpha = eyeAlpha * this.alpha;
-            // 前キャラクター目：SVG絶対座標(366.5,445) → viewBox相対(223.5, 295)
-            const fWhiteR = 103.5 * scale;
-            const fPupilR = fWhiteR * (30 / 68);
-            const fEyeX = drawX + 223.5 * scale;
-            const fEyeY = drawY + 295 * scale;
-            ctx.beginPath(); ctx.arc(fEyeX, fEyeY, fWhiteR, 0, Math.PI * 2);
+            ctx.beginPath(); ctx.arc(eyeX, eyeY, whiteR, 0, Math.PI * 2);
             ctx.fillStyle = PALETTE.WHITE; ctx.fill();
-            ctx.beginPath(); ctx.arc(fEyeX + this.fPupilX, fEyeY + this.fPupilY, fPupilR, 0, Math.PI * 2);
-            ctx.fillStyle = PALETTE.BLUE; ctx.fill();
-            // 後キャラクター目：SVG絶対座標(947.5,485.5) → viewBox相対(804.5, 335.5)
-            const bWhiteR = 83.5 * scale;
-            const bPupilR = bWhiteR * (30 / 68);
-            const bEyeX = drawX + 804.5 * scale;
-            const bEyeY = drawY + 335.5 * scale;
-            ctx.beginPath(); ctx.arc(bEyeX, bEyeY, bWhiteR, 0, Math.PI * 2);
-            ctx.fillStyle = PALETTE.WHITE; ctx.fill();
-            ctx.beginPath(); ctx.arc(bEyeX + this.bPupilX, bEyeY + this.bPupilY, bPupilR, 0, Math.PI * 2);
+            ctx.beginPath(); ctx.arc(eyeX + this.fPupilX, eyeY + this.fPupilY, pupilR, 0, Math.PI * 2);
             ctx.fillStyle = PALETTE.BLUE; ctx.fill();
         }
         ctx.restore();
@@ -1028,8 +1067,9 @@ function isColliding(x, y, r) {
 function createObserverAtRandom(freq) {
     const r = BASE_BODY_R * Math.pow(440 / freq, 0.45);
     for(let i=0; i<30; i++) {
-        let x = canvas.width * (0.05 + Math.random() * 0.9), y = canvas.height * (0.05 + Math.random() * 0.9);
-        if (!isColliding(x, y, r)) {
+        let x = (canvas.width / DPR) * (0.05 + Math.random() * 0.9),
+            y = (canvas.height / DPR) * (0.05 + Math.random() * 0.9);
+        if (!isColliding(x, y, r) && !isInNushiEye(x, y, r)) {
             const obs = new Observer(x, y, 800, 5200); obs.linkTone(freq);
             observers.push(obs); return obs;
         }
@@ -1038,7 +1078,8 @@ function createObserverAtRandom(freq) {
 }
 
 function render(now) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.clearRect(0, 0, canvas.width / DPR, canvas.height / DPR);
     const beat = engine.beatCount;
     nushi.update(now, beat);
     nushi.draw(ctx, canvas);
@@ -1056,6 +1097,33 @@ function render(now) {
 /* ── UI Logic ── */
 
 const nushi = new Nushi();
+
+// オープニングパーティクル生成
+(function() {
+    const container = document.getElementById('opening-particles');
+    const colors = [PALETTE.GREEN_VIVID, PALETTE.EMERALD, PALETTE.GREEN_SOFT, PALETTE.YELLOW];
+    for (let i = 0; i < 8; i++) {
+        const el = document.createElement('div');
+        const size = 70 + Math.random() * 160;
+        el.className = 'open-particle';
+        el.style.width  = size + 'px';
+        el.style.height = size + 'px';
+        el.style.left   = (Math.random() * 88) + '%';
+        el.style.top    = (Math.random() * 88) + '%';
+        el.style.background = colors[Math.floor(Math.random() * colors.length)];
+        container.appendChild(el);
+    }
+})();
+
+function isInNushiEye(x, y, r) {
+    if (!nushi || !nushi.active) return false;
+    const s = nushi._getDrawW();
+    const W = canvas.width / DPR, H = canvas.height / DPR;
+    const scale = s / 899;
+    const eyeX = (W - s) / 2 + 400 * scale;
+    const eyeY = (H - s) / 2 + 420 * scale;
+    return Math.hypot(x - eyeX, y - eyeY) < (105.0 * scale + r);
+}
 
 function spawnNushiSound() {
     const bassScale = [28, 35, 40, 44, 47];
@@ -1161,6 +1229,8 @@ elements.tempoBtns.forEach(btn => {
         audioState.tempoScale = scale;
         elements.tempoBtns.forEach(b => b.classList.toggle('active', b === btn));
         resetNushiTimer();
+        const newDelayTime = (STEP_4TH_BASE / 2 * 1.5 * scale) / 1000;
+        engine.delay.delayTime.setTargetAtTime(newDelayTime, engine.ctx.currentTime, 0.15);
     };
 });
 
@@ -1242,6 +1312,7 @@ window.addEventListener('touchstart', (e) => {
     const r = BASE_BODY_R * Math.pow(440 / touchFreq, 0.45);
 
     if (isColliding(t.clientX, t.clientY, r)) return;
+    if (isInNushiEye(t.clientX, t.clientY, r)) return;
 
     const obs = new Observer(t.clientX, t.clientY, 400, 4000);
     obs.linkTone(touchFreq);
@@ -1249,7 +1320,7 @@ window.addEventListener('touchstart', (e) => {
 
     const now = engine.ctx.currentTime;
     const panner = engine.ctx.createStereoPanner();
-    panner.pan.value = (t.clientX / canvas.width - 0.5) * 2;
+    panner.pan.value = (t.clientX / (canvas.width / DPR) - 0.5) * 2;
     const localGain = engine.ctx.createGain();
     localGain.gain.value = 1.2;
     localGain.connect(panner).connect(engine.mixerAmb);
@@ -1268,6 +1339,7 @@ window.addEventListener('click', (e) => {
     const r = BASE_BODY_R * Math.pow(440 / touchFreq, 0.45);
 
     if (isColliding(e.clientX, e.clientY, r)) return;
+    if (isInNushiEye(e.clientX, e.clientY, r)) return;
 
     const obs = new Observer(e.clientX, e.clientY, 400, 4000);
     obs.linkTone(touchFreq);
@@ -1275,7 +1347,7 @@ window.addEventListener('click', (e) => {
 
     const now = engine.ctx.currentTime;
     const panner = engine.ctx.createStereoPanner();
-    panner.pan.value = (e.clientX / canvas.width - 0.5) * 2;
+    panner.pan.value = (e.clientX / (canvas.width / DPR) - 0.5) * 2;
     const localGain = engine.ctx.createGain();
     localGain.gain.value = 1.2;
     localGain.connect(panner).connect(engine.mixerAmb);
@@ -1283,11 +1355,15 @@ window.addEventListener('click', (e) => {
     engine.createBreath(now, 5.0, localGain);
 });
 
-window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
-window.addEventListener('orientationchange', () => {
-    setTimeout(() => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }, 150);
-});
-canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+function setCanvasSize() {
+    canvas.width  = window.innerWidth  * DPR;
+    canvas.height = window.innerHeight * DPR;
+    canvas.style.width  = window.innerWidth  + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+}
+window.onresize = () => setCanvasSize();
+window.addEventListener('orientationchange', () => { setTimeout(setCanvasSize, 150); });
+setCanvasSize();
 
 elements.volVal.textContent = INITIAL_UI_PERCENT.toFixed(1) + '%';
 
