@@ -56,7 +56,6 @@
             --emerald:    #00A59E;
             --white:      #FFFFFF;
             --dark-gray:  #222426;
-            --ink:        var(--dark-gray);
             --panel-bg:   rgba(255, 255, 255, 0.95);
             --color-co-myaku: #D9DE00;
             --color-no:      #C9E0B8;
@@ -106,26 +105,28 @@
 
         #overlay {
             position: fixed; inset: 0; z-index: 200;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
             background: var(--white);
             transition: opacity 1.6s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
         }
         #overlay.fade-out { opacity: 0; pointer-events: none; }
 
+        /* 黄金比構図：重心を画面の38.2%地点（黄金分割点）に配置 */
         .overlay-inner {
-            position: relative;
+            position: absolute;
+            left: 50%;
+            top: 38.2%;
             display: flex; flex-direction: column; align-items: center;
             animation: overlayReveal 1.2s cubic-bezier(0.4, 0, 0.2, 1) both;
             width: 90%;
             z-index: 1;
         }
         @keyframes overlayReveal {
-            from { opacity: 0; transform: translateY(12px); }
-            to   { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translate(-50%, calc(-50% + 12px)); }
+            to   { opacity: 1; transform: translate(-50%, -50%); }
         }
 
+        /* 黄金比の余白スケール：24 → 24×φ → 24×φ² */
         .title-mark {
             font-size: 11px; letter-spacing: 0.35em;
             color: #222426;
@@ -137,7 +138,7 @@
         .title-main {
             font-size: clamp(48px, 10vw, 120px);
             line-height: 1.1;
-            margin-bottom: 64px;
+            margin-bottom: 63px;
             text-align: center;
             white-space: nowrap;
             letter-spacing: -0.02em;
@@ -151,7 +152,7 @@
             display: block; 
             font-size: 0.25em; 
             letter-spacing: 0.25em; 
-            margin-top: 16px; 
+            margin-top: 15px; 
             font-weight: 400; 
             font-style: italic; 
             color: #D2D7DA;
@@ -227,6 +228,87 @@
             transition: transform 0.4s ease;
         }
         #settings-trigger.active { transform: rotate(45deg); }
+        #info-trigger {
+            display: inline-flex; align-items: center;
+            cursor: pointer;
+            color: var(--emerald);
+            vertical-align: middle;
+        }
+        #info-trigger:active { opacity: 0.6; }
+
+        #info-modal {
+            position: fixed; inset: 0; z-index: 300;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(34, 36, 38, 0.45);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        #info-modal.open { opacity: 1; pointer-events: auto; }
+
+        #info-modal-inner {
+            position: relative;
+            background: #FFFFFF;
+            border-radius: 4px;
+            width: min(480px, 90vw);
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 40px 36px 32px;
+            box-shadow: 0 24px 48px rgba(0,0,0,0.15);
+            color: #222426;
+        }
+
+        #info-modal-close {
+            position: absolute; top: 16px; right: 20px;
+            background: none; border: none;
+            font-size: 22px; font-weight: 300;
+            color: #828487; cursor: pointer;
+            line-height: 1; padding: 4px 8px;
+            transition: color 0.2s;
+        }
+        #info-modal-close:hover { color: #222426; }
+
+        #info-modal-title {
+            font-size: 22px; font-weight: 700;
+            color: #00A59E; margin: 0 0 4px;
+            letter-spacing: -0.01em;
+        }
+        #info-modal-sub {
+            font-size: 11px; letter-spacing: 0.2em;
+            color: #D2D7DA; margin: 0 0 20px;
+            font-style: italic;
+        }
+        #info-modal-hr, #info-modal-hr2 {
+            border: none;
+            border-top: 1px solid #C9E0B8;
+            margin: 20px 0;
+        }
+        #info-modal-inner section { margin-bottom: 20px; }
+        #info-modal-inner h2 {
+            font-size: 11px; font-weight: 700;
+            letter-spacing: 0.18em; text-transform: uppercase;
+            color: #00A59E; margin: 0 0 10px;
+        }
+        #info-modal-inner p, #info-modal-inner li {
+            font-size: 13px; line-height: 1.75;
+            color: #222426; margin: 0 0 6px;
+        }
+        #info-modal-inner ul, #info-modal-inner ol {
+            padding-left: 18px; margin: 0;
+        }
+        #info-modal-inner li { margin-bottom: 6px; }
+        #info-modal-inner strong { font-weight: 700; }
+        #info-modal-credit {
+            font-size: 11px; color: #828487;
+            line-height: 1.8; margin: 0 0 12px;
+        }
+        #info-modal-disclaimer {
+            font-size: 10px; color: #828487; line-height: 1.7;
+            user-select: text;
+        }
+        #info-modal-disclaimer a { color: #00A59E; text-decoration: underline; }
+
         #panel-backdrop {
             position: fixed; inset: 0; z-index: 160;
             background: rgba(0,0,0,0.2);
@@ -270,10 +352,24 @@
         }
         
         input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: rgba(34, 36, 38, 0.1); }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 2px;
+            background: rgba(34, 36, 38, 0.25);
+            border-radius: 1px;
+        }
+        input[type=range]::-moz-range-track {
+            width: 100%; height: 2px;
+            background: rgba(34, 36, 38, 0.25);
+            border-radius: 1px;
+            border: none;
+        }
         input[type=range]::-webkit-slider-thumb {
             height: 16px; width: 16px; border-radius: 50%; background: var(--emerald);
             -webkit-appearance: none; margin-top: -7px; cursor: pointer;
+        }
+        input[type=range]::-moz-range-thumb {
+            height: 16px; width: 16px; border-radius: 50%; background: var(--emerald);
+            border: none; cursor: pointer;
         }
 
         .icon-action-btn {
@@ -311,6 +407,9 @@
             color: var(--color-mori); 
             text-decoration: underline; 
             font-weight: 700;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
         }
     </style>
 </head>
@@ -352,6 +451,42 @@
 </div>
 
 <div id="panel-backdrop"></div>
+
+<div id="info-modal">
+    <div id="info-modal-inner">
+        <button id="info-modal-close">×</button>
+        <h1 id="info-modal-title">こみゃくのもり</h1>
+        <p id="info-modal-sub">Co-MYAKU Forest</p>
+        <hr id="info-modal-hr">
+        <section>
+            <h2>概要</h2>
+            <p>画面をタップ（またはクリック）すると、音の粒と共に「こみゃく」たちが森に現れます。放置すれば、こみゃくたちが自ら集まり、声を響かせながら静かな森を作り上げていきます。</p>
+        </section>
+        <section>
+            <h2>特徴</h2>
+            <ul>
+                <li><strong>生成音楽エンジン</strong> — アルペジオ・合唱声・鳥のさえずりをリアルタイムに生成します。</li>
+                <li><strong>インタラクティブ</strong> — タップ／クリックした場所にこみゃくが現れ、声を響かせます。</li>
+                <li><strong>ヌシ</strong> — ごく稀に巨大なヌシが現れ、低音の重厚な和声を響かせます。</li>
+                <li><strong>パーソナライズ</strong> — 背景画像をアップロードし、自分だけの森を作れます。HDR写真にも対応。</li>
+                <li><strong>PWA 対応</strong> — ホーム画面に追加することで、アプリのように使用できます。</li>
+            </ul>
+        </section>
+        <section>
+            <h2>遊び方</h2>
+            <ol>
+                <li>START ボタンを押して森に入ります。</li>
+                <li>放置すると自動的に音楽が奏でられます。</li>
+                <li>画面をタップ（クリック）して、こみゃくを呼び出してみてください。</li>
+                <li>下部ドックから再生・一時停止ができます。</li>
+                <li>⚙️ 設定から音量・テンポ・ミュート・背景画像を調整できます。</li>
+            </ol>
+        </section>
+        <hr id="info-modal-hr2">
+        <p id="info-modal-credit">Presented by ARPeggioRev2<br>Program assisted by Gemini &amp; Claude<br>Version 1.1.0</p>
+        <p id="info-modal-disclaimer">本作品は<a href="https://www.expo2025.or.jp/news/news-20260330-01/" target="_blank" rel="noopener" onclick="window.open(this.href,'_blank');return false;">二次創作ガイドライン</a>に基づき個人制作されたファンアートです。運営団体および公式とは一切関係がありません。</p>
+    </div>
+</div>
 
 <div id="control-panel">
     <div class="control-group">
@@ -405,8 +540,16 @@
     <div class="panel-footer">
         <p>Presented by: ARPeggioRev2</p>
         <p>Program assisted by: Gemini &amp; Claude</p>
-        <p>こみゃくのもり Version: 1.0.0</p>
-        <p>本作品は <a href="https://www.expo2025.or.jp/news/news-20260330-01/" target="_blank">二次創作ガイドライン</a>に基づき個人制作されたファンアートです。<br>運営団体および公式とは一切関係がありません。</p>
+        <p>こみゃくのもり Version: 1.1.0
+            <span id="info-trigger" title="About">
+                <svg width="13" height="13" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle; margin-left:6px;">
+                    <circle cx="10" cy="10" r="9" stroke="currentColor" stroke-width="2"/>
+                    <rect x="9.1" y="8.5" width="1.8" height="6" rx="0.9" fill="currentColor"/>
+                    <circle cx="10" cy="5.8" r="1" fill="currentColor"/>
+                </svg>
+            </span>
+        </p>
+        <p>本作品は <a href="https://www.expo2025.or.jp/news/news-20260330-01/" target="_blank" rel="noopener" onclick="window.open(this.href,'_blank');return false;">二次創作ガイドライン</a>に基づき個人制作されたファンアートです。<br>運営団体および公式とは一切関係がありません。</p>
     </div>
 </div>
 
@@ -448,8 +591,6 @@ const audioState = {
 /* ── SOUND ENGINE ── */
 
 const CHOIR_SETTINGS = {
-    clarity: 0.99,      
-    instability: 0,     
     breath: 4,          
     numVoices: 1        
 };
@@ -487,7 +628,7 @@ class BirdChirpEngine {
             modulator.connect(modGain).connect(carrier.frequency);
             
             chirpGain.gain.setValueAtTime(0, now);
-            chirpGain.gain.linearRampToValueAtTime(0.02, now + 0.01);
+            chirpGain.gain.linearRampToValueAtTime(0.028, now + 0.01);
             chirpGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
             
             carrier.connect(chirpGain).connect(this.destination);
@@ -529,7 +670,7 @@ class GuitarArpeggioEngine {
             const g = this.ctx.createGain();
             osc.frequency.setValueAtTime(freq * h, now);
             g.gain.setValueAtTime(0, now);
-            g.gain.linearRampToValueAtTime(0.06 / h, now + attack);
+            g.gain.linearRampToValueAtTime(0.084 / h, now + attack);
             g.gain.exponentialRampToValueAtTime(0.0001, now + decay);
             osc.connect(g).connect(mainGain);
             osc.onended = () => { g.disconnect(); };
@@ -546,7 +687,76 @@ class GuitarArpeggioEngine {
     }
 }
 
-class SanctuaryEngine {
+/* ── ForestOfSilenceReverb ── */
+class ForestOfSilenceReverb {
+    constructor(audioCtx) {
+        this.ctx = audioCtx;
+        this.config = {
+            duration: 6.0,
+            pondStart: 0.010,
+            pondEnd: 0.058,
+            peakTime: 0.375,
+            lpFreq: 2500,
+            lpQ: 0.707,
+            wetGain: 0.20,
+            density: 0.85
+        };
+        this.init();
+    }
+    init() {
+        this.convolver = this.ctx.createConvolver();
+        this.lowpass = this.ctx.createBiquadFilter();
+        this.wetGainNode = this.ctx.createGain();
+        this.lowpass.type = 'lowpass';
+        this.lowpass.frequency.value = this.config.lpFreq;
+        this.lowpass.Q.value = this.config.lpQ;
+        this.wetGainNode.gain.value = this.config.wetGain;
+        this.convolver.buffer = this.generateForestIR();
+        this.convolver.connect(this.lowpass);
+        this.lowpass.connect(this.wetGainNode);
+    }
+    generateForestIR() {
+        const sr = this.ctx.sampleRate;
+        const length = sr * this.config.duration;
+        const buffer = this.ctx.createBuffer(2, length, sr);
+        for (let ch = 0; ch < 2; ch++) {
+            const data = buffer.getChannelData(ch);
+            for (let i = 0; i < length; i++) {
+                const t = i / sr;
+                let envelope = 0;
+                if (t < this.config.pondStart) {
+                    envelope = 0;
+                } else if (t < this.config.pondEnd) {
+                    envelope = 0.2 * Math.random();
+                } else if (t < this.config.peakTime) {
+                    const progress = (t - this.config.pondEnd) / (this.config.peakTime - this.config.pondEnd);
+                    envelope = Math.pow(progress, 3);
+                } else {
+                    const decayT = (t - this.config.peakTime) / (this.config.duration - this.config.peakTime);
+                    envelope = Math.exp(-decayT * 8.0);
+                }
+                const noise = (Math.random() * 2 - 1);
+                const isSparse = Math.random() > this.config.density ? 1 : 0;
+                data[i] = noise * envelope * isSparse;
+            }
+        }
+        this.normalizeBuffer(buffer);
+        return buffer;
+    }
+    normalizeBuffer(buffer) {
+        for (let c = 0; c < buffer.numberOfChannels; c++) {
+            const data = buffer.getChannelData(c);
+            let sumSquares = 0;
+            for (let i = 0; i < data.length; i++) sumSquares += data[i] * data[i];
+            const rms = Math.sqrt(sumSquares / data.length);
+            const scale = 0.1 / (rms + 0.00001);
+            for (let i = 0; i < data.length; i++) data[i] *= scale;
+        }
+    }
+}
+
+/* ── SoundEngine ── */
+class SoundEngine {
     constructor() {
         this.ctx = new (window.AudioContext || window.webkitAudioContext)();
         this.mixerAmb = this.ctx.createGain(); 
@@ -587,15 +797,26 @@ class SanctuaryEngine {
         this.tapeLP.connect(this.delayFeedback);
         this.delayFeedback.connect(this.delay);
         
-        this.convolver = this.ctx.createConvolver();
-        this.reverbGain = this.ctx.createGain();
-        this.reverbGain.gain.value = 5.0;
-        this.generateIR();
-        this.convolver.connect(this.reverbGain);
+        this.forestReverb = new ForestOfSilenceReverb(this.ctx);
+        this.convolver = this.forestReverb.convolver;
+        this.reverbGain = this.forestReverb.wetGainNode;
         
         this.masterOut = this.ctx.createGain();
         this.masterOut.gain.value = (INITIAL_UI_PERCENT / 100); 
-        this.masterOut.connect(this.ctx.destination);
+        // 出力ステージ：聴感ラウドネス確保 + クリッピング保護
+        this.makeupGain = this.ctx.createGain();
+        this.makeupGain.gain.value = 1.0;
+
+        this.limiter = this.ctx.createDynamicsCompressor();
+        this.limiter.threshold.value = -18;
+        this.limiter.knee.value = 6;
+        this.limiter.ratio.value = 3;
+        this.limiter.attack.value = 0.01;
+        this.limiter.release.value = 0.25;
+
+        this.masterOut.connect(this.makeupGain);
+        this.makeupGain.connect(this.limiter);
+        this.limiter.connect(this.ctx.destination);
         
         this.guitar = new GuitarArpeggioEngine(this.ctx, this.masterOut); 
         this.birds = new BirdChirpEngine(this.ctx, this.convolver); 
@@ -603,7 +824,10 @@ class SanctuaryEngine {
         this.mixerAmb.connect(ambHPF).connect(this.masterOut);
         ambHPF.connect(this.delay); ambHPF.connect(this.convolver);
         this.guitar.gainNode.connect(this.delay); this.guitar.gainNode.connect(this.convolver);
-        this.tapeLP.connect(this.masterOut); this.reverbGain.connect(this.masterOut);
+        this.echoGain = this.ctx.createGain();
+        this.echoGain.gain.value = 1.0;
+        this.tapeLP.connect(this.echoGain);
+        this.echoGain.connect(this.masterOut); this.reverbGain.connect(this.masterOut);
         
         this.noiseBuffer = this.makeNoiseBuffer(5);
         this.beatCount = 0;
@@ -617,18 +841,6 @@ class SanctuaryEngine {
         const d = buf.getChannelData(0);
         for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
         return buf;
-    }
-
-    generateIR() {
-        const length = this.ctx.sampleRate * 5.0;
-        const buffer = this.ctx.createBuffer(2, length, this.ctx.sampleRate);
-        for (let c = 0; c < 2; c++) {
-            const data = buffer.getChannelData(c);
-            for (let i = 0; i < length; i++) {
-                data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 5.0);
-            }
-        }
-        this.convolver.buffer = buffer;
     }
 
     createChoirVoice(freq, startTime, duration, target) {
@@ -659,8 +871,8 @@ class SanctuaryEngine {
 
         const voiceOut = this.ctx.createGain();
         voiceOut.gain.setValueAtTime(0, startTime);
-        voiceOut.gain.linearRampToValueAtTime(0.14, startTime + 0.8);
-        voiceOut.gain.setValueAtTime(0.14, startTime + duration - 0.8);
+        voiceOut.gain.linearRampToValueAtTime(0.196, startTime + 0.8);
+        voiceOut.gain.setValueAtTime(0.196, startTime + duration - 0.8);
         voiceOut.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
         formantDefs.forEach(fd => {
@@ -691,8 +903,8 @@ class SanctuaryEngine {
         src.loop = true;
         const nEnv = this.ctx.createGain();
         nEnv.gain.setValueAtTime(0, startTime);
-        nEnv.gain.linearRampToValueAtTime(CHOIR_SETTINGS.breath * 0.0012, startTime + 0.8);
-        nEnv.gain.setValueAtTime(CHOIR_SETTINGS.breath * 0.0012, startTime + duration - 0.8);
+        nEnv.gain.linearRampToValueAtTime(CHOIR_SETTINGS.breath * 0.00168, startTime + 0.8);
+        nEnv.gain.setValueAtTime(CHOIR_SETTINGS.breath * 0.00168, startTime + duration - 0.8);
         nEnv.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
         [{ cf: 850, bw: 200 }, { cf: 1400, bw: 250 }, { cf: 2750, bw: 350 }].forEach(fd => {
@@ -723,7 +935,7 @@ class SanctuaryEngine {
         panner.pan.value = pan;
         
         const localGain = this.ctx.createGain();
-        localGain.gain.value = richness * 1.2; 
+        localGain.gain.value = richness * 1.68; 
 
         localGain.connect(panner).connect(this.mixerAmb);
         
@@ -756,23 +968,27 @@ class SanctuaryEngine {
             const stepInterval = (STEP_4TH_BASE / 2) * audioState.tempoScale;
             this.beatCount++; 
 
-            const isRest = false;
-
-            if (!isRest) {
-                if (!audioState.arpeggioMuted) {
-                    if (this.beatCount % 2 === 0) {
-                        this.currentIdx5 = (this.currentIdx5 + 1) % 5;
-                        const freq5 = this.guitar.playNote(this.guitar.notes5[this.currentIdx5], -0.6);
-                        if (freq5) {
-                            const x = (0.05 + (this.currentIdx5 / 4) * 0.4) * (canvas.width / DPR);
-                            particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*(canvas.height/DPR), freq5, GREEN_SET[this.currentIdx5 % 2]));
+            if (!audioState.arpeggioMuted) {
+                if (this.beatCount % 2 === 0) {
+                    this.currentIdx5 = (this.currentIdx5 + 1) % 5;
+                    const freq5 = this.guitar.playNote(this.guitar.notes5[this.currentIdx5], -0.6);
+                    if (freq5) {
+                        const x = (0.05 + (this.currentIdx5 / 4) * 0.4) * (canvas.width / DPR);
+                        const y = (0.1 + Math.random() * 0.8) * (canvas.height / DPR);
+                        const pR = Math.min(4 + (440 / freq5) * 3, 16);
+                        if (!isInNushiEye(x, y, pR)) {
+                            particles.push(new ArpeggioParticle(x, y, freq5, GREEN_SET[this.currentIdx5 % 2]));
                         }
-                    } else {
-                        this.currentIdx7 = (this.currentIdx7 + 1) % 7;
-                        const freq7 = this.guitar.playNote(this.guitar.notes7[this.currentIdx7], 0.6);
-                        if (freq7) {
-                            const x = (0.55 + (this.currentIdx7 / 6) * 0.4) * (canvas.width / DPR);
-                            particles.push(new ArpeggioParticle(x, (0.1+Math.random()*0.8)*(canvas.height/DPR), freq7, GREEN_SET[2 + (this.currentIdx7 % 2)]));
+                    }
+                } else {
+                    this.currentIdx7 = (this.currentIdx7 + 1) % 7;
+                    const freq7 = this.guitar.playNote(this.guitar.notes7[this.currentIdx7], 0.6);
+                    if (freq7) {
+                        const x = (0.55 + (this.currentIdx7 / 6) * 0.4) * (canvas.width / DPR);
+                        const y = (0.1 + Math.random() * 0.8) * (canvas.height / DPR);
+                        const pR = Math.min(4 + (440 / freq7) * 3, 16);
+                        if (!isInNushiEye(x, y, pR)) {
+                            particles.push(new ArpeggioParticle(x, y, freq7, GREEN_SET[2 + (this.currentIdx7 % 2)]));
                         }
                     }
                 }
@@ -784,7 +1000,11 @@ class SanctuaryEngine {
                 if (quarterCount % 8 === 0 && !audioState.arpeggioMuted) {
                     this.birds.playChirp(this.ctx.currentTime, 1);
                     const W = canvas.width / DPR, H = canvas.height / DPR;
-                    particles.push(new BirdParticle(W * (0.1 + Math.random() * 0.8), H * (0.1 + Math.random() * 0.6)));
+                    const bx = W * (0.1 + Math.random() * 0.8);
+                    const by = H * (0.1 + Math.random() * 0.6);
+                    if (!isInNushiEye(bx, by, 5)) {
+                        particles.push(new BirdParticle(bx, by));
+                    }
                 }
                 if (quarterCount % 4 === 0 && !audioState.choirMuted) { 
                     const dice = Math.random();
@@ -957,10 +1177,7 @@ class Nushi {
         this.ready  = false;
         this.fPupilX = 0; this.fPupilY = 0;
         this.fTargetPX = 0; this.fTargetPY = 0;
-        this.bPupilX = 0; this.bPupilY = 0;
-        this.bTargetPX = 0; this.bTargetPY = 0;
         this.fBaseAngle = Math.random() * Math.PI * 2;
-        this.bBaseAngle = Math.random() * Math.PI * 2;
         this.gazeInterval = 24 + Math.floor(Math.random() * 8);
         this.gazeOffset   = Math.floor(Math.random() * 8);
         this.lastGazeBeat = -1;
@@ -970,7 +1187,6 @@ class Nushi {
     _randomizeColors() {
         const gc = [PALETTE.GREEN_VIVID, PALETTE.EMERALD, PALETTE.GREEN_SOFT, PALETTE.YELLOW];
         this.colorFront = gc[Math.floor(Math.random() * gc.length)];
-        this.colorBack  = gc[Math.floor(Math.random() * gc.length)];
     }
     _buildImage() {
         this.ready = false;
@@ -1058,7 +1274,7 @@ class Nushi {
 }
 const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d');
 let observers = [], particles = [];
-const engine = new SanctuaryEngine();
+const engine = new SoundEngine();
 
 function isColliding(x, y, r) {
     return observers.some(o => Math.hypot(o.x - x, o.y - y) < (o.bodyR + r + MIN_MARGIN));
@@ -1098,21 +1314,34 @@ function render(now) {
 
 const nushi = new Nushi();
 
-// オープニングパーティクル生成
+// オープニングパーティクル生成（黄金比グリッドの交点付近に配置）
 (function() {
     const container = document.getElementById('opening-particles');
     const colors = [PALETTE.GREEN_VIVID, PALETTE.EMERALD, PALETTE.GREEN_SOFT, PALETTE.YELLOW];
-    for (let i = 0; i < 8; i++) {
+    // 黄金分割線（38.2% / 61.8%、その外側23.6% / 76.4%）の交点を基準点とする
+    const goldenPoints = [
+        { x: 38.2, y: 38.2, sizeMul: 1.3 },
+        { x: 61.8, y: 38.2, sizeMul: 1.0 },
+        { x: 38.2, y: 61.8, sizeMul: 0.8 },
+        { x: 61.8, y: 61.8, sizeMul: 1.15 },
+        { x: 23.6, y: 61.8, sizeMul: 0.6 },
+        { x: 76.4, y: 38.2, sizeMul: 0.7 },
+        { x: 38.2, y: 76.4, sizeMul: 0.5 },
+        { x: 61.8, y: 23.6, sizeMul: 0.9 },
+    ];
+    goldenPoints.forEach(p => {
         const el = document.createElement('div');
-        const size = 70 + Math.random() * 160;
+        const size = (70 + Math.random() * 90) * p.sizeMul;
+        const jitterX = (Math.random() - 0.5) * 9;
+        const jitterY = (Math.random() - 0.5) * 9;
         el.className = 'open-particle';
         el.style.width  = size + 'px';
         el.style.height = size + 'px';
-        el.style.left   = (Math.random() * 88) + '%';
-        el.style.top    = (Math.random() * 88) + '%';
+        el.style.left   = (p.x + jitterX) + '%';
+        el.style.top    = (p.y + jitterY) + '%';
         el.style.background = colors[Math.floor(Math.random() * colors.length)];
         container.appendChild(el);
-    }
+    });
 })();
 
 function isInNushiEye(x, y, r) {
@@ -1136,7 +1365,7 @@ function spawnNushiSound() {
             const panner = engine.ctx.createStereoPanner();
             panner.pan.value = (Math.random() - 0.5) * 0.3;
             const localGain = engine.ctx.createGain();
-            localGain.gain.value = 2.2;
+            localGain.gain.value = 3.08;
             localGain.connect(panner).connect(engine.mixerAmb);
             engine.createChoirVoice(freq, engine.ctx.currentTime, dur, localGain);
             engine.createBreath(engine.ctx.currentTime, dur, localGain);
@@ -1263,7 +1492,7 @@ elements.resetBg.onclick = (e) => {
 
 elements.vol.oninput = (e) => {
     const percent = parseFloat(e.target.value);
-    elements.volVal.textContent = percent.toFixed(1) + '%';
+    elements.volVal.textContent = Math.round(percent) + '%';
     const gainValue = percent / 100;
     engine.masterOut.gain.setTargetAtTime(gainValue, engine.ctx.currentTime, 0.1);
 };
@@ -1288,6 +1517,38 @@ elements.bgInput.onchange = (e) => {
     reader.readAsDataURL(file);
 };
 
+function spawnKomyakuAt(x, y) {
+    if (!isMasterPlaying) return;
+
+    const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
+    const touchFreq = 440 * Math.pow(2, (midi - 69) / 12);
+    const r = BASE_BODY_R * Math.pow(440 / touchFreq, 0.45);
+
+    if (isColliding(x, y, r)) return;
+    if (isInNushiEye(x, y, r)) return;
+
+    // 16分音符クオンタイズ（最大待機 = STEP_4TH_BASE / 2 ms）
+    const sixteenth = (STEP_4TH_BASE / 2) * audioState.tempoScale;
+    const ctxNow = engine.ctx.currentTime;
+    const elapsed = (ctxNow - (engine.ctx.baseLatency || 0)) % (sixteenth / 1000);
+    const waitSec = elapsed < (sixteenth / 1000 / 2)
+        ? 0
+        : (sixteenth / 1000) - elapsed;
+    const startTime = ctxNow + waitSec;
+
+    const obs = new Observer(x, y, 400, 4000);
+    obs.linkTone(touchFreq);
+    observers.push(obs);
+
+    const panner = engine.ctx.createStereoPanner();
+    panner.pan.value = (x / (canvas.width / DPR) - 0.5) * 2;
+    const localGain = engine.ctx.createGain();
+    localGain.gain.value = 1.68;
+    localGain.connect(panner).connect(engine.mixerAmb);
+    engine.createChoirVoice(touchFreq, startTime, 5.0, localGain);
+    engine.createBreath(startTime, 5.0, localGain);
+}
+
 window.addEventListener('touchstart', (e) => {
     if (elements.overlay.offsetParent !== null && !elements.overlay.classList.contains('fade-out')) return;
     
@@ -1304,55 +1565,16 @@ window.addEventListener('touchstart', (e) => {
         return;
     }
 
-    if (!isMasterPlaying) return;
-
     const t = e.touches[0];
-    const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
-    const touchFreq = 440 * Math.pow(2, (midi - 69) / 12);
-    const r = BASE_BODY_R * Math.pow(440 / touchFreq, 0.45);
-
-    if (isColliding(t.clientX, t.clientY, r)) return;
-    if (isInNushiEye(t.clientX, t.clientY, r)) return;
-
-    const obs = new Observer(t.clientX, t.clientY, 400, 4000);
-    obs.linkTone(touchFreq);
-    observers.push(obs);
-
-    const now = engine.ctx.currentTime;
-    const panner = engine.ctx.createStereoPanner();
-    panner.pan.value = (t.clientX / (canvas.width / DPR) - 0.5) * 2;
-    const localGain = engine.ctx.createGain();
-    localGain.gain.value = 1.2;
-    localGain.connect(panner).connect(engine.mixerAmb);
-    engine.createChoirVoice(touchFreq, now, 5.0, localGain);
-    engine.createBreath(now, 5.0, localGain);
+    spawnKomyakuAt(t.clientX, t.clientY);
 }, { passive: false });
 
 window.addEventListener('click', (e) => {
     if (elements.overlay.offsetParent !== null && !elements.overlay.classList.contains('fade-out')) return;
     if (elements.panel.classList.contains('open')) return;
     if (e.target.closest('.dock') || e.target.closest('#control-panel') || e.target.closest('#panel-backdrop')) return;
-    if (!isMasterPlaying) return;
 
-    const midi = MASTER_SCALE[Math.floor(Math.random() * MASTER_SCALE.length)];
-    const touchFreq = 440 * Math.pow(2, (midi - 69) / 12);
-    const r = BASE_BODY_R * Math.pow(440 / touchFreq, 0.45);
-
-    if (isColliding(e.clientX, e.clientY, r)) return;
-    if (isInNushiEye(e.clientX, e.clientY, r)) return;
-
-    const obs = new Observer(e.clientX, e.clientY, 400, 4000);
-    obs.linkTone(touchFreq);
-    observers.push(obs);
-
-    const now = engine.ctx.currentTime;
-    const panner = engine.ctx.createStereoPanner();
-    panner.pan.value = (e.clientX / (canvas.width / DPR) - 0.5) * 2;
-    const localGain = engine.ctx.createGain();
-    localGain.gain.value = 1.2;
-    localGain.connect(panner).connect(engine.mixerAmb);
-    engine.createChoirVoice(touchFreq, now, 5.0, localGain);
-    engine.createBreath(now, 5.0, localGain);
+    spawnKomyakuAt(e.clientX, e.clientY);
 });
 
 function setCanvasSize() {
@@ -1361,11 +1583,27 @@ function setCanvasSize() {
     canvas.style.width  = window.innerWidth  + 'px';
     canvas.style.height = window.innerHeight + 'px';
 }
+// Echo / Reverb 固定値
+engine.echoGain.gain.value        = 0.50;
+engine.delayFeedback.gain.value   = 0.30;
+engine.reverbGain.gain.value      = 1.0;
+
+const infoModal    = document.getElementById('info-modal');
+const infoTrigger  = document.getElementById('info-trigger');
+const infoClose    = document.getElementById('info-modal-close');
+
+function openInfoModal()  { infoModal.classList.add('open'); }
+function closeInfoModal() { infoModal.classList.remove('open'); }
+
+infoTrigger.onclick = (e) => { e.stopPropagation(); openInfoModal(); };
+infoClose.onclick   = (e) => { e.stopPropagation(); closeInfoModal(); };
+infoModal.onclick   = (e) => { if (e.target === infoModal) closeInfoModal(); };
+
 window.onresize = () => setCanvasSize();
 window.addEventListener('orientationchange', () => { setTimeout(setCanvasSize, 150); });
 setCanvasSize();
 
-elements.volVal.textContent = INITIAL_UI_PERCENT.toFixed(1) + '%';
+elements.volVal.textContent = Math.round(INITIAL_UI_PERCENT) + '%';
 
 requestAnimationFrame(render);
 </script>
