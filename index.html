@@ -111,11 +111,11 @@
         }
         #overlay.fade-out { opacity: 0; pointer-events: none; }
 
-        /* 黄金比構図：重心を画面の38.2%地点（黄金分割点）に配置 */
+        /* 視覚的中央（45%）配置 */
         .overlay-inner {
             position: absolute;
             left: 50%;
-            top: 38.2%;
+            top: 45%;
             display: flex; flex-direction: column; align-items: center;
             animation: overlayReveal 1.2s cubic-bezier(0.4, 0, 0.2, 1) both;
             width: 90%;
@@ -126,7 +126,6 @@
             to   { opacity: 1; transform: translate(-50%, -50%); }
         }
 
-        /* 黄金比の余白スケール：24 → 24×φ → 24×φ² */
         .title-mark {
             font-size: 11px; letter-spacing: 0.35em;
             color: #222426;
@@ -1314,26 +1313,25 @@ function render(now) {
 
 const nushi = new Nushi();
 
-// オープニングパーティクル生成（黄金比グリッドの交点付近に配置）
+// オープニングパーティクル生成（三分割グリッドベースに均等分散）
 (function() {
     const container = document.getElementById('opening-particles');
     const colors = [PALETTE.GREEN_VIVID, PALETTE.EMERALD, PALETTE.GREEN_SOFT, PALETTE.YELLOW];
-    // 黄金分割線（38.2% / 61.8%、その外側23.6% / 76.4%）の交点を基準点とする
-    const goldenPoints = [
-        { x: 38.2, y: 38.2, sizeMul: 1.3 },
-        { x: 61.8, y: 38.2, sizeMul: 1.0 },
-        { x: 38.2, y: 61.8, sizeMul: 0.8 },
-        { x: 61.8, y: 61.8, sizeMul: 1.15 },
-        { x: 23.6, y: 61.8, sizeMul: 0.6 },
-        { x: 76.4, y: 38.2, sizeMul: 0.7 },
-        { x: 38.2, y: 76.4, sizeMul: 0.5 },
-        { x: 61.8, y: 23.6, sizeMul: 0.9 },
+    const points = [
+        { x: 15,  y: 18,  sizeMul: 0.7  },
+        { x: 72,  y: 12,  sizeMul: 1.1  },
+        { x: 88,  y: 40,  sizeMul: 0.8  },
+        { x: 30,  y: 55,  sizeMul: 1.2  },
+        { x: 68,  y: 58,  sizeMul: 0.9  },
+        { x: 10,  y: 72,  sizeMul: 0.6  },
+        { x: 50,  y: 80,  sizeMul: 1.0  },
+        { x: 82,  y: 78,  sizeMul: 0.75 },
     ];
-    goldenPoints.forEach(p => {
+    points.forEach(p => {
         const el = document.createElement('div');
         const size = (70 + Math.random() * 90) * p.sizeMul;
-        const jitterX = (Math.random() - 0.5) * 9;
-        const jitterY = (Math.random() - 0.5) * 9;
+        const jitterX = (Math.random() - 0.5) * 8;
+        const jitterY = (Math.random() - 0.5) * 8;
         el.className = 'open-particle';
         el.style.width  = size + 'px';
         el.style.height = size + 'px';
